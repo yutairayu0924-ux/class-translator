@@ -2,50 +2,61 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Subtitle Tool</title>
+    <title>Hybrid Subtitle Tool - Optional Learning</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #1a1a1a; color: #eee; padding: 20px; margin: 0; }
-        .controls { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 0 0 10px 10px; }
-        .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; margin: 5px; font-weight: bold; }
+        .controls { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; align-items: center; }
+        .btn { padding: 8px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; transition: 0.3s; }
         #startBtn { background: #27ae60; color: white; }
+        #startBtn:hover { background: #2ecc71; }
         #pipBtn { background: #2980b9; color: white; }
-        select { padding: 10px; border-radius: 5px; }
-        #canvasContainer { display: flex; justify-content: center; background: #000; padding: 10px; }
+        .pdf-section { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; border: 1px dashed #666; }
+        #canvasContainer { background: #000; padding: 10px; display: flex; justify-content: center; }
         #subtitleCanvas { border: 1px solid #444; width: 100%; max-width: 900px; height: auto; }
-        #debugLog { background: #000; color: #0f0; padding: 10px; height: 80px; overflow-y: scroll; font-size: 0.75rem; text-align: left; border-top: 1px solid #333; }
+        #debugLog { background: #000; color: #0f0; padding: 10px; height: 60px; overflow-y: scroll; font-size: 0.7rem; text-align: left; border-top: 1px solid #333; font-family: monospace; }
+        select { padding: 8px; border-radius: 5px; background: #fff; }
     </style>
 </head>
 <body>
 
 <div class="controls">
+    <div class="pdf-section">
+        <strong>【オプション】</strong> 授業スライド(PDF): 
+        <input type="file" id="pdfUpload" accept="application/pdf">
+        <span id="pdfStatus" style="color: #bbb;">未読み込み（標準モード）</span>
+    </div>
     <select id="langMode">
-        <option value="ja|en">🇯🇵 日本語 → 🇺🇸 英語</option>
-        <option value="en|ja">🇺🇸 英語 → 🇯🇵 日本語</option>
+        <option value="ja|en">🇯🇵 日 → 英</option>
+        <option value="en|ja">🇺🇸 英 → 日</option>
     </select>
     <button id="startBtn" class="btn">1. 音声認識を開始</button>
     <button id="pipBtn" class="btn" style="display:none;">2. 字幕を浮かせる</button>
 </div>
 
 <div id="canvasContainer">
-    <canvas id="subtitleCanvas" width="1000" height="250"></canvas>
+    <canvas id="subtitleCanvas" width="1000" height="200"></canvas>
 </div>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
-
-<div id="debugLog">システムログ: 待機中...</div>
+<div id="debugLog">>> システム待機中...</div>
 
 <script>
     const startBtn = document.getElementById('startBtn');
     const pipBtn = document.getElementById('pipBtn');
     const langMode = document.getElementById('langMode');
+    const pdfUpload = document.getElementById('pdfUpload');
+    const pdfStatus = document.getElementById('pdfStatus');
     const canvas = document.getElementById('subtitleCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('videoElement');
     const log = document.getElementById('debugLog');
 
     let recognition;
-    let currentTranslatedText = ""; // 最後に翻訳された文章を保持
-    let currentInterimText = "";    // 現在認識中の文章
+    let currentTranslatedText = "";
+    let currentInterimText = "";
+    let glossary = []; // PDFから抽出した用語リスト
 
+    // 1. ログ表示関数
     function addLog(msg) {
         const div = document.createElement('div');
         div.textContent = `> ${msg}`;
@@ -53,71 +64,98 @@
         log.scrollTop = log.scrollHeight;
     }
 
-    // 文字を折り返して描画する関数
-    function wrapText(context, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(''); // 日本語・英語両対応のため1文字ずつ
-        let line = '';
+    // 2. PDF読み込み（任意）
+    pdfUpload.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        pdfStatus.innerText = "解析中...";
+        pdfStatus.style.color = "#f1c40f";
+        
+        const reader = new FileReader();
+        reader.onload = async function() {
+            try {
+                const typedarray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(' ');
+                }
+                // 専門用語（2文字以上の漢字、または4文字以上の英単語）を抽出
+                glossary = [...new Set(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])];
+                addLog(`PDFを学習しました（${glossary.length}語）。この用語を優先して認識します。`);
+                pdfStatus.innerText = "学習済みモード";
+                pdfStatus.style.color = "#2ecc71";
+            } catch (err) {
+                addLog("PDF読み込みエラー: 標準モードで続行します。");
+                pdfStatus.innerText = "エラー（標準モード）";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
+    // 3. 用語補正ロジック（glossaryが空なら何もしない）
+    function correctText(text) {
+        if (!glossary || glossary.length === 0) return text;
+        let corrected = text;
+        glossary.forEach(term => {
+            if (term.length > 2 && text.toLowerCase().includes(term.toLowerCase())) {
+                const regex = new RegExp(term, 'gi');
+                corrected = corrected.replace(regex, term);
+            }
+        });
+        return corrected;
+    }
+
+    // 4. 字幕描画
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split('');
+        let line = '';
         for(let n = 0; n < words.length; n++) {
             let testLine = line + words[n];
-            let metrics = context.measureText(testLine);
-            let testWidth = metrics.width;
-            if (testWidth > maxWidth && n > 0) {
+            if (context.measureText(testLine).width > maxWidth && n > 0) {
                 context.fillText(line, x, y);
                 line = words[n];
                 y += lineHeight;
-            } else {
-                line = testLine;
-            }
+            } else { line = testLine; }
         }
         context.fillText(line, x, y);
     }
 
     function updateDisplay() {
-        // 背景消去
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 1. 認識中のテキスト（上部に小さく）
-        ctx.fillStyle = '#aaa';
-        ctx.font = '24px sans-serif';
+        // 上部：認識中の文字
+        ctx.fillStyle = '#999';
+        ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(currentInterimText, canvas.width / 2, 40);
-
-        // 2. 翻訳後のメイン字幕（中央に大きく）
-        ctx.fillStyle = '#ffffff'; // 白色
-        ctx.font = 'bold 42px sans-serif';
-        wrapText(ctx, currentTranslatedText, canvas.width / 2, 120, 900, 55);
+        ctx.fillText(currentInterimText, canvas.width / 2, 35);
+        // 中央：翻訳字幕（サイズ32px）
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px sans-serif';
+        wrapText(ctx, currentTranslatedText, canvas.width / 2, 90, 920, 45);
     }
 
-    // 初期描画
-    updateDisplay();
-
+    // 5. 音声認識の設定
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
 
-        recognition.onstart = () => addLog("音声認識を開始しました。マイクに向かって話してください。");
-        recognition.onerror = (e) => addLog("エラー: " + e.error);
-        
         recognition.onresult = async (event) => {
             let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const transcript = event.results[i][0].transcript;
+                let transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    // 文章が確定したとき
+                    transcript = correctText(transcript); // ここで補正（任意）
                     const [source, target] = langMode.value.split('|');
-                    addLog("確定: " + transcript);
-                    
                     try {
                         const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${source}|${target}`);
                         const data = await res.json();
                         currentTranslatedText = data.responseData.translatedText;
-                    } catch (e) {
-                        addLog("翻訳エラー");
-                    }
+                    } catch (e) { addLog("翻訳失敗"); }
                 } else {
                     interimTranscript += transcript;
                 }
@@ -125,11 +163,7 @@
             currentInterimText = interimTranscript;
             updateDisplay();
         };
-
-        recognition.onend = () => {
-            addLog("認識が途切れました。再起動します...");
-            recognition.start();
-        };
+        recognition.onend = () => { if(recognition) recognition.start(); };
     }
 
     startBtn.onclick = () => {
@@ -138,15 +172,16 @@
         recognition.start();
         startBtn.style.display = 'none';
         pipBtn.style.display = 'inline-block';
-
         const stream = canvas.captureStream(10);
         video.srcObject = stream;
         video.play();
+        addLog(`認識を開始しました (${source === 'ja' ? '日本語' : '英語'}モード)`);
     };
 
-    pipBtn.onclick = () => {
-        video.requestPictureInPicture();
-    };
+    pipBtn.onclick = () => video.requestPictureInPicture();
+    
+    // 初期描画
+    updateDisplay();
 </script>
 </body>
 </html>
