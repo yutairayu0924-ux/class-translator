@@ -2,113 +2,108 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Multi-Lang Subtitle Tool</title>
+    <title>Fixed Subtitle Tool</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #2c3e50; color: white; padding: 30px; }
-        #canvas-container { margin-bottom: 20px; }
-        .controls { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        select, .btn { padding: 10px 20px; font-size: 1rem; border-radius: 5px; border: none; margin: 5px; }
-        .btn { cursor: pointer; background: #27ae60; color: white; font-weight: bold; }
-        .btn-pip { background: #2980b9; }
-        .status { margin-top: 15px; font-size: 0.9rem; color: #bdc3c7; }
-        #subtitleCanvas { border: 2px solid #ecf0f1; border-radius: 8px; max-width: 100%; }
+        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; padding: 20px; }
+        .controls { background: #34495e; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; margin: 5px; }
+        #startBtn { background: #27ae60; color: white; }
+        #pipBtn { background: #2980b9; color: white; }
+        #subtitleCanvas { border: 2px solid white; background: black; width: 100%; max-width: 600px; }
+        #debugLog { background: #000; color: #0f0; padding: 10px; height: 100px; overflow-y: scroll; font-size: 0.8rem; text-align: left; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>Lecture Subtitle Tool V2</h1>
+    <h2>Subtitle Overlay V2.1</h2>
 
     <div class="controls">
-        <label for="langMode">翻訳モード:</label>
         <select id="langMode">
-            <option value="ja|en">日本語 → 英語 (JP to EN)</option>
-            <option value="en|ja">英語 → 日本語 (EN to JP)</option>
+            <option value="ja|en">日本語 → 英語</option>
+            <option value="en|ja">英語 → 日本語</option>
         </select>
-        <br>
-        <button id="startBtn" class="btn">音声認識を開始</button>
-        <button id="pipBtn" class="btn btn-pip" style="display:none;">字幕を最前面に浮かす</button>
+        <button id="startBtn" class="btn">1. マイク開始</button>
+        <button id="pipBtn" class="btn" style="display:none;">2. 字幕を浮かせる</button>
     </div>
 
     <canvas id="subtitleCanvas" width="800" height="150"></canvas>
     <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
-    <div id="status" class="status">モードを選択して「開始」を押してください</div>
+    <div id="debugLog">【ログ】ここに動作状況が表示されます...</div>
 
     <script>
         const startBtn = document.getElementById('startBtn');
         const pipBtn = document.getElementById('pipBtn');
         const langMode = document.getElementById('langMode');
-        const status = document.getElementById('status');
         const canvas = document.getElementById('subtitleCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('videoElement');
+        const log = document.getElementById('debugLog');
 
         let recognition;
-        let isRunning = false;
 
-        function drawSubtitle(text, isTranslating = false) {
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = isTranslating ? '#f1c40f' : 'white'; // 翻訳中は少し色を変える
-            ctx.font = 'bold 36px sans-serif';
-            ctx.textAlign = 'center';
-            
-            // 長いテキストを折り返して表示
-            const maxWidth = 750;
-            const words = text.split('');
-            let line = '';
-            let y = 80;
-
-            if (text.length > 30) {
-                ctx.font = 'bold 28px sans-serif';
-                y = 60;
-            }
-            ctx.fillText(text, canvas.width / 2, y);
+        function addLog(msg) {
+            log.innerHTML += `<div>${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
         }
 
-        drawSubtitle("準備完了");
+        function drawSubtitle(text) {
+            // 背景を黒で塗りつぶし
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // 文字を書く
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, canvas.width / 2, 90);
+        }
 
-        if ('webkitSpeechRecognition' in window) {
-            recognition = new webkitSpeechRecognition();
+        // 初期表示
+        drawSubtitle("準備完了：開始を押してください");
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
             recognition.continuous = true;
-            recognition.interimResults = true; // 認識の途中経過も取得する（スピード感アップ）
+            recognition.interimResults = true;
 
+            recognition.onstart = () => addLog("✔ 音声認識が起動しました");
+            recognition.onerror = (e) => addLog("❌ エラー: " + e.error);
+            
             recognition.onresult = async (event) => {
                 let interimTranscript = '';
                 let finalTranscript = '';
 
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
+                        finalTranscript += transcript;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interimTranscript += transcript;
                     }
                 }
 
-                // 認識中の文字をとりあえず表示（スピード感のため）
+                // 認識中の声をキャンバスに出す
                 if (interimTranscript) {
-                    drawSubtitle(interimTranscript, true);
+                    drawSubtitle(interimTranscript);
                 }
 
-                // 確定したら翻訳
+                // 確定したら翻訳して出す
                 if (finalTranscript) {
+                    addLog("認識確定: " + finalTranscript);
                     const [source, target] = langMode.value.split('|');
-                    status.innerText = "翻訳中...";
-                    
                     try {
                         const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(finalTranscript)}&langpair=${source}|${target}`);
                         const data = await res.json();
                         const translatedText = data.responseData.translatedText;
+                        addLog("翻訳成功: " + translatedText);
                         drawSubtitle(translatedText);
-                        status.innerText = "完了: " + finalTranscript;
                     } catch (e) {
-                        status.innerText = "翻訳エラーが発生しました";
+                        addLog("❌ 翻訳失敗");
                     }
                 }
             };
-
-            recognition.onend = () => {
-                if (isRunning) recognition.start(); // 止まっても自動再開
-            };
+        } else {
+            addLog("❌ お使いのブラウザは音声認識に対応していません。Chromeをお使いください。");
         }
 
         startBtn.onclick = () => {
@@ -116,18 +111,21 @@
             recognition.lang = (source === 'ja') ? 'ja-JP' : 'en-US';
             
             recognition.start();
-            isRunning = true;
             startBtn.style.display = 'none';
             pipBtn.style.display = 'inline-block';
-            langMode.disabled = true;
-            status.innerText = "音声を聴き取っています...";
 
-            const stream = canvas.captureStream();
+            // CanvasをVideoに接続して再生開始
+            const stream = canvas.captureStream(10); // 10fpsで更新
             video.srcObject = stream;
+            video.play(); // これが重要！
         };
 
         pipBtn.onclick = () => {
-            video.requestPictureInPicture();
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture();
+            } else {
+                video.requestPictureInPicture().catch(e => addLog("❌ PiP失敗: " + e));
+            }
         };
     </script>
 </body>
