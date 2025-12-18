@@ -2,87 +2,130 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Web Subtitle Overlay</title>
+    <title>Multi-Lang Subtitle Tool</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f0f0; padding: 50px; }
-        #canvas-container { border: 2px solid #333; margin-bottom: 20px; display: none; }
-        .btn { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
-        .status { margin-top: 20px; color: #666; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #2c3e50; color: white; padding: 30px; }
+        #canvas-container { margin-bottom: 20px; }
+        .controls { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        select, .btn { padding: 10px 20px; font-size: 1rem; border-radius: 5px; border: none; margin: 5px; }
+        .btn { cursor: pointer; background: #27ae60; color: white; font-weight: bold; }
+        .btn-pip { background: #2980b9; }
+        .status { margin-top: 15px; font-size: 0.9rem; color: #bdc3c7; }
+        #subtitleCanvas { border: 2px solid #ecf0f1; border-radius: 8px; max-width: 100%; }
     </style>
 </head>
 <body>
-    <h1>Lecture Subtitle Tool</h1>
-    <p>「START」を押した後、右下の「ピクチャー・イン・ピクチャー」を有効にしてください。</p>
-    
-    <canvas id="subtitleCanvas" width="800" height="150" style="display:none;"></canvas>
+    <h1>Lecture Subtitle Tool V2</h1>
+
+    <div class="controls">
+        <label for="langMode">翻訳モード:</label>
+        <select id="langMode">
+            <option value="ja|en">日本語 → 英語 (JP to EN)</option>
+            <option value="en|ja">英語 → 日本語 (EN to JP)</option>
+        </select>
+        <br>
+        <button id="startBtn" class="btn">音声認識を開始</button>
+        <button id="pipBtn" class="btn btn-pip" style="display:none;">字幕を最前面に浮かす</button>
+    </div>
+
+    <canvas id="subtitleCanvas" width="800" height="150"></canvas>
     <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
-    <button id="startBtn" class="btn">START (音声認識開始)</button>
-    <button id="pipBtn" class="btn" style="display:none;">字幕を浮かせる (PiP)</button>
-
-    <div id="status" class="status">待機中...</div>
+    <div id="status" class="status">モードを選択して「開始」を押してください</div>
 
     <script>
         const startBtn = document.getElementById('startBtn');
         const pipBtn = document.getElementById('pipBtn');
+        const langMode = document.getElementById('langMode');
         const status = document.getElementById('status');
         const canvas = document.getElementById('subtitleCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('videoElement');
 
         let recognition;
+        let isRunning = false;
 
-        // 1. 字幕をキャンバスに描く関数
-        function drawSubtitle(text) {
+        function drawSubtitle(text, isTranslating = false) {
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 40px sans-serif';
+            ctx.fillStyle = isTranslating ? '#f1c40f' : 'white'; // 翻訳中は少し色を変える
+            ctx.font = 'bold 36px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(text, canvas.width / 2, 90);
+            
+            // 長いテキストを折り返して表示
+            const maxWidth = 750;
+            const words = text.split('');
+            let line = '';
+            let y = 80;
+
+            if (text.length > 30) {
+                ctx.font = 'bold 28px sans-serif';
+                y = 60;
+            }
+            ctx.fillText(text, canvas.width / 2, y);
         }
 
-        // 初期表示
-        drawSubtitle("Waiting for speech...");
+        drawSubtitle("準備完了");
 
-        // 2. 音声認識の設定
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
-            recognition.lang = 'ja-JP';
             recognition.continuous = true;
-            recognition.interimResults = false;
+            recognition.interimResults = true; // 認識の途中経過も取得する（スピード感アップ）
 
             recognition.onresult = async (event) => {
-                const japaneseText = event.results[event.results.length - 1][0].transcript;
-                status.innerText = "認識中: " + japaneseText;
+                let interimTranscript = '';
+                let finalTranscript = '';
 
-                // 3. 無料翻訳APIの呼び出し
-                try {
-                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(japaneseText)}&langpair=ja|en`);
-                    const data = await res.json();
-                    const englishText = data.responseData.translatedText;
-                    
-                    // キャンバスを更新
-                    drawSubtitle(englishText);
-                } catch (e) {
-                    console.error("翻訳エラー", e);
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
                 }
+
+                // 認識中の文字をとりあえず表示（スピード感のため）
+                if (interimTranscript) {
+                    drawSubtitle(interimTranscript, true);
+                }
+
+                // 確定したら翻訳
+                if (finalTranscript) {
+                    const [source, target] = langMode.value.split('|');
+                    status.innerText = "翻訳中...";
+                    
+                    try {
+                        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(finalTranscript)}&langpair=${source}|${target}`);
+                        const data = await res.json();
+                        const translatedText = data.responseData.translatedText;
+                        drawSubtitle(translatedText);
+                        status.innerText = "完了: " + finalTranscript;
+                    } catch (e) {
+                        status.innerText = "翻訳エラーが発生しました";
+                    }
+                }
+            };
+
+            recognition.onend = () => {
+                if (isRunning) recognition.start(); // 止まっても自動再開
             };
         }
 
-        // 4. 開始ボタンの処理
         startBtn.onclick = () => {
+            const [source, target] = langMode.value.split('|');
+            recognition.lang = (source === 'ja') ? 'ja-JP' : 'en-US';
+            
             recognition.start();
+            isRunning = true;
             startBtn.style.display = 'none';
             pipBtn.style.display = 'inline-block';
-            status.innerText = "マイク使用中...";
+            langMode.disabled = true;
+            status.innerText = "音声を聴き取っています...";
 
-            // キャンバスを動画ストリームに変換してVideoタグに流す
             const stream = canvas.captureStream();
             video.srcObject = stream;
         };
 
-        // 5. ピクチャー・イン・ピクチャーの処理
         pipBtn.onclick = () => {
             video.requestPictureInPicture();
         };
