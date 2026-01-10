@@ -2,104 +2,104 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Hybrid Subtitle Tool - Optional Learning</title>
+    <title>Lecture Subtitle - Event Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #1a1a1a; color: #eee; padding: 20px; margin: 0; }
-        .controls { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; align-items: center; }
-        .btn { padding: 8px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; transition: 0.3s; }
-        #startBtn { background: #27ae60; color: white; }
-        #startBtn:hover { background: #2ecc71; }
-        #pipBtn { background: #2980b9; color: white; }
-        .pdf-section { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; border: 1px dashed #666; }
-        #canvasContainer { background: #000; padding: 10px; display: flex; justify-content: center; }
-        #subtitleCanvas { border: 1px solid #444; width: 100%; max-width: 900px; height: auto; }
-        #debugLog { background: #000; color: #0f0; padding: 10px; height: 60px; overflow-y: scroll; font-size: 0.7rem; text-align: left; border-top: 1px solid #333; font-family: monospace; }
-        select { padding: 8px; border-radius: 5px; background: #fff; }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
+        .setup-panel { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .control-panel { background: #444; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .btn { padding: 12px 24px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
+        .btn-green { background: #27ae60; color: white; }
+        .btn-blue { background: #2980b9; color: white; }
+        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.5rem; }
+        textarea { width: 90%; height: 60px; background: #222; color: #fff; border: 1px solid #555; padding: 5px; font-size: 0.8rem; }
+        #subtitleCanvas { border: 2px solid #555; background: #000; width: 100%; max-width: 1000px; height: auto; }
+        #status-bar { font-size: 1.2rem; font-weight: bold; color: #f1c40f; margin: 10px 0; }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <div class="pdf-section">
-        <strong>【オプション】</strong> 授業スライド(PDF): 
+<div class="setup-panel">
+    <div>
+        <strong>1. 用語学習 (PDF)</strong><br>
         <input type="file" id="pdfUpload" accept="application/pdf">
-        <span id="pdfStatus" style="color: #bbb;">未読み込み（標準モード）</span>
     </div>
-    <select id="langMode">
-        <option value="ja|en">🇯🇵 日 → 英</option>
-        <option value="en|ja">🇺🇸 英 → 日</option>
-    </select>
-    <button id="startBtn" class="btn">1. 音声認識を開始</button>
-    <button id="pipBtn" class="btn" style="display:none;">2. 字幕を浮かせる</button>
+    <div>
+        <strong>2. 手動キーワード登録 (画像スライド対策)</strong><br>
+        <textarea id="manualKeywords" placeholder="専門用語をカンマ区切りで入力（例: AI, 機械学習, Quantum...）"></textarea>
+    </div>
 </div>
 
-<div id="canvasContainer">
-    <canvas id="subtitleCanvas" width="1000" height="200"></canvas>
+<div class="control-panel">
+    <div id="status-bar">現在のモード: <span id="modeDisplay">準備中</span></div>
+    <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
+    <br>
+    <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
+    <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を最前面に出す</button>
 </div>
+
+<canvas id="subtitleCanvas" width="1000" height="200"></canvas>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
-<div id="debugLog">>> システム待機中...</div>
 
 <script>
     const startBtn = document.getElementById('startBtn');
     const pipBtn = document.getElementById('pipBtn');
-    const langMode = document.getElementById('langMode');
+    const toggleLang = document.getElementById('toggleLang');
+    const modeDisplay = document.getElementById('modeDisplay');
+    const manualKeywords = document.getElementById('manualKeywords');
     const pdfUpload = document.getElementById('pdfUpload');
-    const pdfStatus = document.getElementById('pdfStatus');
     const canvas = document.getElementById('subtitleCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('videoElement');
-    const log = document.getElementById('debugLog');
 
     let recognition;
+    let isJaToEn = true; // デフォルトは日→英
     let currentTranslatedText = "";
     let currentInterimText = "";
-    let glossary = []; // PDFから抽出した用語リスト
+    let glossary = [];
 
-    // 1. ログ表示関数
-    function addLog(msg) {
-        const div = document.createElement('div');
-        div.textContent = `> ${msg}`;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
+    function updateModeDisplay() {
+        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
     }
+    updateModeDisplay();
 
-    // 2. PDF読み込み（任意）
+    // 言語切り替えボタン
+    toggleLang.onclick = () => {
+        isJaToEn = !isJaToEn;
+        updateModeDisplay();
+        if (recognition) {
+            recognition.stop(); // 言語設定を反映させるために一度止める（onendで自動再起動）
+            recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
+        }
+    };
+
+    // PDF読み込み
     pdfUpload.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        pdfStatus.innerText = "解析中...";
-        pdfStatus.style.color = "#f1c40f";
-        
         const reader = new FileReader();
         reader.onload = async function() {
-            try {
-                const typedarray = new Uint8Array(this.result);
-                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    fullText += content.items.map(item => item.str).join(' ');
-                }
-                // 専門用語（2文字以上の漢字、または4文字以上の英単語）を抽出
-                glossary = [...new Set(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])];
-                addLog(`PDFを学習しました（${glossary.length}語）。この用語を優先して認識します。`);
-                pdfStatus.innerText = "学習済みモード";
-                pdfStatus.style.color = "#2ecc71";
-            } catch (err) {
-                addLog("PDF読み込みエラー: 標準モードで続行します。");
-                pdfStatus.innerText = "エラー（標準モード）";
+            const typedarray = new Uint8Array(this.result);
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                fullText += content.items.map(item => item.str).join(' ');
             }
+            glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
+            alert("PDFから学習しました");
         };
         reader.readAsArrayBuffer(file);
     };
 
-    // 3. 用語補正ロジック（glossaryが空なら何もしない）
     function correctText(text) {
-        if (!glossary || glossary.length === 0) return text;
+        // 手動入力されたキーワードも追加
+        const manual = manualKeywords.value.split(/[,、\s]+/).filter(w => w.length > 0);
+        const activeGlossary = [...new Set([...glossary, ...manual])];
+        
         let corrected = text;
-        glossary.forEach(term => {
+        activeGlossary.forEach(term => {
             if (term.length > 2 && text.toLowerCase().includes(term.toLowerCase())) {
                 const regex = new RegExp(term, 'gi');
                 corrected = corrected.replace(regex, term);
@@ -108,80 +108,70 @@
         return corrected;
     }
 
-    // 4. 字幕描画
-    function wrapText(context, text, x, y, maxWidth, lineHeight) {
-        const words = text.split('');
-        let line = '';
-        for(let n = 0; n < words.length; n++) {
-            let testLine = line + words[n];
-            if (context.measureText(testLine).width > maxWidth && n > 0) {
-                context.fillText(line, x, y);
-                line = words[n];
-                y += lineHeight;
-            } else { line = testLine; }
-        }
-        context.fillText(line, x, y);
-    }
-
-    function updateDisplay() {
+    function draw() {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // 上部：認識中の文字
         ctx.fillStyle = '#999';
         ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(currentInterimText, canvas.width / 2, 35);
-        // 中央：翻訳字幕（サイズ32px）
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 32px sans-serif';
-        wrapText(ctx, currentTranslatedText, canvas.width / 2, 90, 920, 45);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 34px sans-serif';
+        
+        // テキスト折り返し処理
+        const maxWidth = 920;
+        const lineHeight = 45;
+        let words = currentTranslatedText.split('');
+        let line = '';
+        let y = 90;
+        for(let n = 0; n < words.length; n++) {
+            let testLine = line + words[n];
+            if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+                ctx.fillText(line, canvas.width / 2, y);
+                line = words[n];
+                y += lineHeight;
+            } else { line = testLine; }
+        }
+        ctx.fillText(line, canvas.width / 2, y);
     }
 
-    // 5. 音声認識の設定
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
 
         recognition.onresult = async (event) => {
-            let interimTranscript = '';
+            let interim = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 let transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    transcript = correctText(transcript); // ここで補正（任意）
-                    const [source, target] = langMode.value.split('|');
-                    try {
-                        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${source}|${target}`);
-                        const data = await res.json();
-                        currentTranslatedText = data.responseData.translatedText;
-                    } catch (e) { addLog("翻訳失敗"); }
+                    transcript = correctText(transcript);
+                    const source = isJaToEn ? 'ja' : 'en';
+                    const target = isJaToEn ? 'en' : 'ja';
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${source}|${target}`);
+                    const data = await res.json();
+                    currentTranslatedText = data.responseData.translatedText;
                 } else {
-                    interimTranscript += transcript;
+                    interim += transcript;
                 }
             }
-            currentInterimText = interimTranscript;
-            updateDisplay();
+            currentInterimText = interim;
+            draw();
         };
-        recognition.onend = () => { if(recognition) recognition.start(); };
+        recognition.onend = () => { recognition.start(); };
     }
 
     startBtn.onclick = () => {
-        const [source, target] = langMode.value.split('|');
-        recognition.lang = (source === 'ja') ? 'ja-JP' : 'en-US';
+        recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
         recognition.start();
         startBtn.style.display = 'none';
         pipBtn.style.display = 'inline-block';
-        const stream = canvas.captureStream(10);
-        video.srcObject = stream;
+        video.srcObject = canvas.captureStream(10);
         video.play();
-        addLog(`認識を開始しました (${source === 'ja' ? '日本語' : '英語'}モード)`);
     };
 
     pipBtn.onclick = () => video.requestPictureInPicture();
-    
-    // 初期描画
-    updateDisplay();
+    draw();
 </script>
 </body>
 </html>
