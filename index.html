@@ -250,7 +250,7 @@
                     lastProcessedLength = 0;
                 } else {
                     interim = transcript;
-                    const threshold = isJaToEn ? 35 : 100;
+                    const threshold = isJaToEn ? 20 : 75;
                     if (interim.length - lastProcessedLength > threshold) {
                         const chunk = interim.substring(lastProcessedLength);
                         translateText(chunk);
