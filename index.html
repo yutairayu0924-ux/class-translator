@@ -2,46 +2,52 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Slim Edition</title>
+    <title>Lecture Subtitle - Professional V4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
-        .setup-panel { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .control-panel { background: #444; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .setup-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .setup-box { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; text-align: left; }
+        .control-panel { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #444; }
         .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
         .btn-green { background: #27ae60; color: white; }
         .btn-blue { background: #2980b9; color: white; }
-        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.2rem; }
-        textarea { width: 90%; height: 50px; background: #222; color: #fff; border: 1px solid #555; padding: 5px; font-size: 0.8rem; }
-        #canvasContainer { display: flex; justify-content: center; margin-top: 10px; }
-        /* キャンバス自体の表示サイズを調整 */
-        #subtitleCanvas { border: 1px solid #555; background: #000; width: 100%; max-width: 1100px; height: auto; }
-        #status-bar { font-size: 1.1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
+        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.1rem; }
+        textarea { width: 95%; height: 60px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; }
+        #canvasContainer { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
+        /* 1800pxの超横長キャンバス */
+        #subtitleCanvas { border: 1px solid #666; background: #000; width: 100%; max-width: 1400px; height: auto; }
+        #status-bar { font-size: 1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #ddd; }
     </style>
 </head>
 <body>
 
-<div class="setup-panel">
-    <div>
-        <strong>1. 用語学習 (PDF)</strong><br>
-        <input type="file" id="pdfUpload" accept="application/pdf">
+<div class="setup-container">
+    <div class="setup-box">
+        <label>1. 用語学習 (PDF)</label>
+        <input type="file" id="pdfUpload" accept="application/pdf" style="width:100%">
     </div>
-    <div>
-        <strong>2. 手動キーワード登録</strong><br>
-        <textarea id="manualKeywords" placeholder="専門用語を入力（カンマ区切り）"></textarea>
+    <div class="setup-box">
+        <label>2. キーワード登録 (聞き取り補正)</label>
+        <textarea id="manualKeywords" placeholder="AI, Gemini, 太郎... (カンマ区切り)"></textarea>
+    </div>
+    <div class="setup-box">
+        <label>3. マイ辞書 (翻訳の固定)</label>
+        <textarea id="myDictionary" placeholder="人工知能:Super AI&#10;学生:Learner"></textarea>
     </div>
 </div>
 
 <div class="control-panel">
-    <div id="status-bar">現在のモード: <span id="modeDisplay">準備中</span></div>
+    <div id="status-bar">モード: <span id="modeDisplay">準備中</span></div>
     <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
     <br>
     <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
-    <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を最前面に出す</button>
+    <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を浮かせる (PiP)</button>
 </div>
 
 <div id="canvasContainer">
-    <canvas id="subtitleCanvas" width="1200" height="120"></canvas>
+    <canvas id="subtitleCanvas" width="1800" height="80"></canvas>
 </div>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
@@ -51,6 +57,7 @@
     const toggleLang = document.getElementById('toggleLang');
     const modeDisplay = document.getElementById('modeDisplay');
     const manualKeywords = document.getElementById('manualKeywords');
+    const myDictionary = document.getElementById('myDictionary');
     const pdfUpload = document.getElementById('pdfUpload');
     const canvas = document.getElementById('subtitleCanvas');
     const ctx = canvas.getContext('2d');
@@ -95,12 +102,13 @@
         reader.readAsArrayBuffer(file);
     };
 
-    function correctText(text) {
-        const manual = manualKeywords.value.split(/[,、\s]+/).filter(w => w.length > 0);
+    // 音声認識された原文を補正する関数
+    function correctSourceText(text) {
+        const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
         let corrected = text;
         activeGlossary.forEach(term => {
-            if (term.length > 2 && text.toLowerCase().includes(term.toLowerCase())) {
+            if (term.length > 1 && text.toLowerCase().includes(term.toLowerCase())) {
                 const regex = new RegExp(term, 'gi');
                 corrected = corrected.replace(regex, term);
             }
@@ -108,26 +116,39 @@
         return corrected;
     }
 
+    // 翻訳結果をマイ辞書に基づいて強制置換する関数
+    function applyMyDictionary(text) {
+        const lines = myDictionary.value.split('\n');
+        let result = text;
+        lines.forEach(line => {
+            const [src, target] = line.split(/[:：]/);
+            if (src && target) {
+                const regex = new RegExp(src.trim(), 'gi');
+                result = result.replace(regex, target.trim());
+            }
+        });
+        return result;
+    }
+
     function draw() {
-        // 背景の描画
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 上段：認識中のテキスト（小さく、少しグレー）
-        ctx.fillStyle = '#bbb';
-        ctx.font = '22px sans-serif';
+        // 上段：認識中のテキスト (16px)
+        ctx.fillStyle = '#888';
+        ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(currentInterimText, canvas.width / 2, 35);
+        ctx.fillText(currentInterimText, canvas.width / 2, 25);
         
-        // 下段：翻訳後のテキスト（大きく白く）
+        // 下段：翻訳後のテキスト (26px)
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 36px sans-serif';
+        ctx.font = 'bold 26px sans-serif';
         
-        const maxWidth = 1100;
-        const lineHeight = 42;
+        const maxWidth = 1700;
+        const lineHeight = 32;
         let words = currentTranslatedText.split('');
         let line = '';
-        let y = 85; // 縦幅が短いため開始位置を調整
+        let y = 60; 
 
         for(let n = 0; n < words.length; n++) {
             let testLine = line + words[n];
@@ -150,12 +171,15 @@
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 let transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    transcript = correctText(transcript);
+                    transcript = correctSourceText(transcript);
                     const source = isJaToEn ? 'ja' : 'en';
                     const target = isJaToEn ? 'en' : 'ja';
                     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${source}|${target}`);
                     const data = await res.json();
-                    currentTranslatedText = data.responseData.translatedText;
+                    
+                    // 翻訳結果にマイ辞書を適用
+                    let translated = data.responseData.translatedText;
+                    currentTranslatedText = applyMyDictionary(translated);
                 } else {
                     interim += transcript;
                 }
@@ -176,8 +200,6 @@
     };
 
     pipBtn.onclick = () => video.requestPictureInPicture();
-    
-    // 初期描画
     draw();
 </script>
 </body>
