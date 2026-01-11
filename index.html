@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Professional V10 (Smart Chunk)</title>
+    <title>Lecture Subtitle - Ultimate V11 (Google Engine)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
@@ -54,7 +54,9 @@
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
 <script>
-    const MY_EMAIL = "yutairayu0924@gmail.com"; 
+    // 【最重要】手順Aで作ったURLをここに貼り付けてください
+    // 例: const GAS_URL = "https://script.google.com/macros/s/AKfycbx.../exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwPIYiOJu8Jn-Zke3wylZ2W4_fKMIkeDWGWiJV7LSLf70t9Q5-lacYj2pifcDDgXrYqyA/exec"; 
 
     const startBtn = document.getElementById('startBtn');
     const pipBtn = document.getElementById('pipBtn');
@@ -134,19 +136,22 @@
 
         const source = isJaToEn ? 'ja' : 'en';
         const target = isJaToEn ? 'en' : 'ja';
-        const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(corrected)}&langpair=${source}|${target}&de=${encodeURIComponent(MY_EMAIL)}`;
+        
+        // GASを使って翻訳
+        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
         
         try {
             const res = await fetch(apiUrl);
             const data = await res.json();
-            let translated = data.responseData.translatedText;
+            let translated = data.text; // GASからの戻り値
+            
             activeDictionary.forEach(pair => {
                 const regex = new RegExp(pair.src, 'gi');
                 translated = translated.replace(regex, pair.target);
             });
             currentTranslatedText = translated;
             draw();
-        } catch (e) { console.error("API Error"); }
+        } catch (e) { console.error("API Error", e); }
     }
 
     function draw() {
@@ -208,11 +213,7 @@
                     lastProcessedLength = 0;
                 } else {
                     interim = transcript;
-                    
-                    // 【修正ポイント】言語によって閾値を変える
-                    // 日本語なら35文字、英語なら100文字
                     const threshold = isJaToEn ? 35 : 100;
-
                     if (interim.length - lastProcessedLength > threshold) {
                         const chunk = interim.substring(lastProcessedLength);
                         translateText(chunk);
