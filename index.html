@@ -2,24 +2,25 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Ultimate V11 (Google Engine)</title>
+    <title>Lecture Subtitle - AI Powered V13</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
-        .setup-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .setup-container { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
         .setup-box { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; text-align: left; }
         .control-panel { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #444; }
         .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; transition: 0.2s; }
         .btn-green { background: #27ae60; color: white; }
-        .btn-green:hover { background: #2ecc71; }
         .btn-blue { background: #2980b9; color: white; }
         .btn-orange { background: #e67e22; color: white; width: 100%; margin-top: 5px; font-size: 0.8rem; }
         .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.1rem; }
-        textarea { width: 95%; height: 60px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; resize: none; }
+        textarea { width: 95%; height: 50px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; resize: none; }
+        .config-input { width: 90%; margin-bottom: 5px; background: #222; color: white; border: 1px solid #666; padding: 4px; }
+        .color-picker { height: 30px; width: 100%; cursor: pointer; }
         #canvasContainer { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
-        #subtitleCanvas { border: 1px solid #666; background: #000; width: 100%; max-width: 1850px; height: auto; }
+        #subtitleCanvas { border: 1px solid #666; background: #000; max-width: 100%; height: auto; }
         #status-bar { font-size: 1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #ddd; }
+        label { display: block; margin-bottom: 3px; font-weight: bold; color: #ddd; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -30,13 +31,21 @@
         <input type="file" id="pdfUpload" accept="application/pdf" style="width:100%">
     </div>
     <div class="setup-box">
-        <label>2. キーワード登録 (聞き取り補正)</label>
-        <textarea id="manualKeywords" placeholder="AI, Gemini..."></textarea>
+        <label>2. キーワード・マイ辞書</label>
+        <input type="text" id="manualKeywords" class="config-input" placeholder="補正: AI, Gemini...">
+        <textarea id="myDictionary" placeholder="辞書: 人工知能:AI"></textarea>
+        <button id="saveDictBtn" class="btn btn-orange">辞書確定</button>
     </div>
     <div class="setup-box">
-        <label>3. マイ辞書 (翻訳の固定)</label>
-        <textarea id="myDictionary" placeholder="人工知能:Super AI"></textarea>
-        <button id="saveDictBtn" class="btn btn-orange">辞書登録を確定する</button>
+        <label>3. キャンバス設定</label>
+        幅: <input type="number" id="cfgWidth" class="config-input" value="1900">
+        高さ: <input type="number" id="cfgHeight" class="config-input" value="150">
+        文字サイズ: <input type="number" id="cfgFontSize" class="config-input" value="50">
+    </div>
+    <div class="setup-box">
+        <label>4. 色設定</label>
+        文字色: <input type="color" id="cfgTextColor" class="color-picker" value="#ffffff">
+        背景色: <input type="color" id="cfgBgColor" class="color-picker" value="#000000">
     </div>
 </div>
 
@@ -54,9 +63,10 @@
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
 <script>
-    // 【最重要】手順Aで作ったURLをここに貼り付けてください
-    // 例: const GAS_URL = "https://script.google.com/macros/s/AKfycbx.../exec";
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwPIYiOJu8Jn-Zke3wylZ2W4_fKMIkeDWGWiJV7LSLf70t9Q5-lacYj2pifcDDgXrYqyA/exec"; 
+    // ========================================================
+    // 【重要】ここにGoogle AI Studioで取得したAPIキーを入れる
+    const GEMINI_API_KEY = "AIzaSyAQTCsmpRCG0WDcQ6WAdGicYlNz9RrdRMw"; 
+    // ========================================================
 
     const startBtn = document.getElementById('startBtn');
     const pipBtn = document.getElementById('pipBtn');
@@ -69,14 +79,33 @@
     const canvas = document.getElementById('subtitleCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('videoElement');
+    
+    // 設定UI
+    const cfgWidth = document.getElementById('cfgWidth');
+    const cfgHeight = document.getElementById('cfgHeight');
+    const cfgFontSize = document.getElementById('cfgFontSize');
+    const cfgTextColor = document.getElementById('cfgTextColor');
+    const cfgBgColor = document.getElementById('cfgBgColor');
 
     let recognition;
     let isJaToEn = true; 
-    let currentTranslatedText = "";
+    let currentTranslatedText = "AI Translation Ready";
     let currentInterimText = "";
     let glossary = [];
     let activeDictionary = [];
     let lastProcessedLength = 0;
+
+    // 設定反映
+    function updateConfig() {
+        canvas.width = parseInt(cfgWidth.value) || 1900;
+        canvas.height = parseInt(cfgHeight.value) || 150;
+        draw();
+    }
+    cfgWidth.onchange = updateConfig;
+    cfgHeight.onchange = updateConfig;
+    cfgFontSize.onchange = draw;
+    cfgTextColor.oninput = draw;
+    cfgBgColor.oninput = draw;
 
     updateModeDisplay();
 
@@ -100,7 +129,7 @@
     };
 
     function updateModeDisplay() {
-        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
+        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語 (AI)" : "🇺🇸 英語 → 🇯🇵 日本語 (AI)";
     }
 
     pdfUpload.onchange = async (e) => {
@@ -122,58 +151,80 @@
         reader.readAsArrayBuffer(file);
     };
 
+    // ★Gemini APIを呼び出す関数
     async function translateText(text) {
         if (!text.trim()) return;
-        let corrected = text;
+
+        // 手動キーワードの取得
         const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
-        activeGlossary.forEach(term => {
-            if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
-                const regex = new RegExp(term, 'gi');
-                corrected = corrected.replace(regex, term);
-            }
-        });
-
-        const source = isJaToEn ? 'ja' : 'en';
-        const target = isJaToEn ? 'en' : 'ja';
         
-        // GASを使って翻訳
-        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
+        // 言語設定
+        const targetLang = isJaToEn ? "English" : "Japanese";
+        const sourceLang = isJaToEn ? "Japanese" : "English";
+
+        // プロンプト（AIへの命令書）の作成
+        const prompt = `
+        You are a professional simultaneous interpreter.
+        Translate the following ${sourceLang} text to ${targetLang}.
+        
+        Rules:
+        1. Context: This is a university lecture or presentation.
+        2. Correction: If the input seems like a speech recognition error, guess the correct meaning from context and translate it.
+        3. Keywords: Prioritize these terms if relevant: [${activeGlossary.join(', ')}].
+        4. Output: Return ONLY the translated text. No explanations.
+        
+        Input: "${text}"
+        `;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         try {
-            const res = await fetch(apiUrl);
-            const data = await res.json();
-            let translated = data.text; // GASからの戻り値
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
             
+            const data = await response.json();
+            let translated = data.candidates[0].content.parts[0].text.trim();
+
+            // マイ辞書の適用（最終強制上書き）
             activeDictionary.forEach(pair => {
                 const regex = new RegExp(pair.src, 'gi');
                 translated = translated.replace(regex, pair.target);
             });
+
             currentTranslatedText = translated;
             draw();
-        } catch (e) { console.error("API Error", e); }
+        } catch (e) {
+            console.error("Gemini API Error:", e);
+        }
     }
 
     function draw() {
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = cfgBgColor.value;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         if (currentInterimText) {
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = '#888888'; 
             ctx.font = '14px sans-serif';
             ctx.textAlign = 'left';
             ctx.fillText(currentInterimText, 10, 15);
         }
 
-        const maxWidth = 1850;
-        let fontSize = 50; 
-        let lineHeight = 58;
+        const maxWidth = canvas.width - 50;
+        let baseSize = parseInt(cfgFontSize.value) || 50;
+        let fontSize = baseSize; 
+        let lineHeight = baseSize * 1.2;
 
-        if (currentTranslatedText.length > 100) { fontSize = 30; lineHeight = 36; }
-        else if (currentTranslatedText.length > 60) { fontSize = 40; lineHeight = 46; }
+        if (currentTranslatedText.length > 100) { fontSize = baseSize * 0.6; lineHeight = fontSize * 1.2; }
+        else if (currentTranslatedText.length > 60) { fontSize = baseSize * 0.8; lineHeight = fontSize * 1.2; }
 
         ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = cfgTextColor.value;
         ctx.textAlign = 'center';
 
         let words = currentTranslatedText.split('');
@@ -213,7 +264,8 @@
                     lastProcessedLength = 0;
                 } else {
                     interim = transcript;
-                    const threshold = isJaToEn ? 35 : 100;
+                    // AIは少し長めの文脈があったほうが賢いので、閾値を少し長めに設定
+                    const threshold = isJaToEn ? 40 : 120;
                     if (interim.length - lastProcessedLength > threshold) {
                         const chunk = interim.substring(lastProcessedLength);
                         translateText(chunk);
@@ -230,12 +282,15 @@
     startBtn.onclick = () => {
         recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
         recognition.start();
+        if(currentTranslatedText === "AI Translation Ready") currentTranslatedText = ""; 
         startBtn.style.display = 'none';
         pipBtn.style.display = 'inline-block';
         video.srcObject = canvas.captureStream(10);
         video.play();
+        draw();
     };
     pipBtn.onclick = () => video.requestPictureInPicture();
+    
     draw();
 </script>
 </body>
