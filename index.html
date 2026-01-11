@@ -2,33 +2,307 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Ultimate V12 (Visual Config)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture Subtitle - リアルタイム翻訳</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
-        /* グリッドを4列に変更して設定項目を収める */
-        .setup-container { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
-        .setup-box { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; text-align: left; }
-        .control-panel { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #444; }
-        .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; transition: 0.2s; }
-        .btn-green { background: #27ae60; color: white; }
-        .btn-green:hover { background: #2ecc71; }
-        .btn-blue { background: #2980b9; color: white; }
-        .btn-orange { background: #e67e22; color: white; width: 100%; margin-top: 5px; font-size: 0.8rem; }
-        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.1rem; }
-        textarea { width: 95%; height: 50px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; resize: none; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            text-align: center; 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee; 
+            margin: 0; 
+            padding: 15px;
+            min-height: 100vh;
+        }
         
-        /* 設定用のinputスタイル */
-        .config-input { width: 90%; margin-bottom: 5px; background: #222; color: white; border: 1px solid #666; padding: 4px; }
-        .color-picker { height: 30px; width: 100%; cursor: pointer; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .setup-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 15px; 
+            background: rgba(255, 255, 255, 0.03); 
+            padding: 20px; 
+            border-radius: 15px; 
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .setup-box { 
+            background: rgba(255, 255, 255, 0.05); 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-size: 0.9rem; 
+            text-align: left;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .setup-box:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .control-panel { 
+            background: rgba(255, 255, 255, 0.05); 
+            padding: 20px; 
+            border-radius: 15px; 
+            margin-bottom: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .btn { 
+            padding: 12px 24px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            margin: 8px; 
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-green { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; }
+        .btn-green:hover { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); }
+        
+        .btn-blue { background: linear-gradient(135deg, #2980b9 0%, #3498db 100%); color: white; }
+        .btn-blue:hover { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4); }
+        
+        .btn-orange { 
+            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); 
+            color: white; 
+            width: 100%; 
+            margin-top: 10px; 
+            font-size: 0.9rem;
+        }
+        .btn-orange:hover { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+        
+        .btn-switch { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); 
+            color: white; 
+            width: 100%; 
+            max-width: 400px; 
+            font-size: 1.1rem;
+            padding: 14px 28px;
+        }
+        .btn-switch:hover {
+            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+        
+        textarea { 
+            width: 100%; 
+            height: 60px; 
+            background: rgba(0, 0, 0, 0.3); 
+            color: #0f0; 
+            border: 1px solid rgba(85, 85, 85, 0.5); 
+            padding: 8px; 
+            font-size: 0.85rem; 
+            font-family: 'Courier New', monospace; 
+            resize: vertical;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+        }
+        
+        .config-input { 
+            width: 100%; 
+            margin-bottom: 8px; 
+            background: rgba(0, 0, 0, 0.3); 
+            color: white; 
+            border: 1px solid rgba(102, 102, 102, 0.5); 
+            padding: 8px; 
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+        }
+        
+        .color-picker { 
+            height: 40px; 
+            width: 100%; 
+            cursor: pointer; 
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            transition: transform 0.2s;
+        }
+        
+        .color-picker:hover {
+            transform: scale(1.05);
+        }
 
-        #canvasContainer { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
-        #subtitleCanvas { border: 1px solid #666; background: #000; max-width: 100%; height: auto; }
-        #status-bar { font-size: 1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
-        label { display: block; margin-bottom: 3px; font-weight: bold; color: #ddd; font-size: 0.85rem; }
+        #canvasContainer { 
+            display: flex; 
+            justify-content: center; 
+            margin-top: 20px; 
+            overflow-x: auto;
+            padding: 10px;
+        }
+        
+        #subtitleCanvas { 
+            border: 2px solid rgba(102, 102, 102, 0.5); 
+            background: #000; 
+            max-width: 100%; 
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        
+        #status-bar { 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            color: #4facfe; 
+            margin: 10px 0;
+            padding: 12px;
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+        
+        #status-bar .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2ecc71;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            color: #ddd; 
+            font-size: 0.95rem;
+        }
+        
+        .loading-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #4facfe;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(46, 204, 113, 0.95);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .setup-container {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 1.4rem;
+            }
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
     </style>
 </head>
 <body>
+<div class="container">
+<div class="header">
+    <h1>🎓 リアルタイム講義翻訳システム</h1>
+    <p style="margin:0; color:#aaa; font-size:0.9rem;">授業やプレゼンテーションをリアルタイムで翻訳・字幕表示</p>
+</div>
 
 <div class="setup-container">
     <div class="setup-box">
@@ -43,9 +317,12 @@
     </div>
     <div class="setup-box">
         <label>3. キャンバス設定</label>
-        幅(px): <input type="number" id="cfgWidth" class="config-input" value="1900">
-        高さ(px): <input type="number" id="cfgHeight" class="config-input" value="150">
-        文字サイズ: <input type="number" id="cfgFontSize" class="config-input" value="50">
+        <label style="font-size:0.85rem; margin-top:5px;">幅(px)</label>
+        <input type="number" id="cfgWidth" class="config-input" value="1900" min="800" max="3840">
+        <label style="font-size:0.85rem; margin-top:5px;">高さ(px)</label>
+        <input type="number" id="cfgHeight" class="config-input" value="150" min="100" max="1080">
+        <label style="font-size:0.85rem; margin-top:5px;">文字サイズ</label>
+        <input type="number" id="cfgFontSize" class="config-input" value="50" min="20" max="200">
     </div>
     <div class="setup-box">
         <label>4. 色設定</label>
@@ -55,7 +332,11 @@
 </div>
 
 <div class="control-panel">
-    <div id="status-bar">モード: <span id="modeDisplay">準備中</span></div>
+    <div id="status-bar">
+        <span class="status-indicator"></span>
+        モード: <span id="modeDisplay">準備中</span>
+        <span id="loadingIndicator" class="loading-indicator" style="display:none;"></span>
+    </div>
     <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
     <br>
     <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
@@ -66,6 +347,7 @@
     <canvas id="subtitleCanvas" width="1900" height="150"></canvas>
 </div>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
+</div>
 
 <script>
     // ==========================================
@@ -100,6 +382,13 @@
     let glossary = [];
     let activeDictionary = [];
     let lastProcessedLength = 0;
+    
+    // 翻訳改善用の変数
+    let translationCache = new Map(); // 翻訳キャッシュ
+    let translationQueue = []; // 翻訳キュー
+    let isTranslating = false; // 翻訳中のフラグ
+    let pendingTranslation = null; // 保留中の翻訳
+    const CACHE_SIZE = 500; // キャッシュサイズの上限
 
     // 設定変更の監視（変更されたら即再描画）
     function updateConfig() {
@@ -122,7 +411,8 @@
             const [src, target] = line.split(/[:：]/);
             if (src && target) activeDictionary.push({ src: src.trim(), target: target.trim() });
         });
-        alert(`辞書更新完了 (${activeDictionary.length}件)`);
+        showNotification(`辞書更新完了 (${activeDictionary.length}件)`);
+        translationCache.clear(); // 辞書更新時はキャッシュをクリア
     };
 
     toggleLang.onclick = () => {
@@ -143,47 +433,153 @@
         if (!file) return;
         const reader = new FileReader();
         reader.onload = async function() {
-            const typedarray = new Uint8Array(this.result);
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-            let fullText = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                fullText += content.items.map(item => item.str).join(' ');
+            try {
+                const typedarray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(' ');
+                }
+                glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
+                showNotification(`PDF学習完了！ (${glossary.length}語彙)`);
+            } catch (error) {
+                console.error("PDF読み込みエラー:", error);
+                showNotification("PDF読み込みに失敗しました", "error");
             }
-            glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
-            alert("PDF学習完了！");
         };
         reader.readAsArrayBuffer(file);
     };
 
+    // 通知表示関数
+    function showNotification(message, type = "success") {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.style.background = type === "error" 
+            ? 'rgba(231, 76, 60, 0.95)' 
+            : 'rgba(46, 204, 113, 0.95)';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
+
+    // キャッシュ管理関数
+    function getCacheKey(text, source, target) {
+        return `${source}_${target}_${text}`;
+    }
+
+    function addToCache(key, value) {
+        if (translationCache.size >= CACHE_SIZE) {
+            // 最も古いエントリを削除（LRU的な動作）
+            const firstKey = translationCache.keys().next().value;
+            translationCache.delete(firstKey);
+        }
+        translationCache.set(key, value);
+    }
+
+    // 改善された翻訳関数（キャッシュ、キューイング、リトライ機能付き）
     async function translateText(text) {
         if (!text.trim()) return;
-        let corrected = text;
+        
+        // テキストの前処理
+        let corrected = text.trim();
         const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
         activeGlossary.forEach(term => {
             if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
-                const regex = new RegExp(term, 'gi');
+                const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
                 corrected = corrected.replace(regex, term);
             }
         });
 
         const source = isJaToEn ? 'ja' : 'en';
         const target = isJaToEn ? 'en' : 'ja';
-        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
-        
-        try {
-            const res = await fetch(apiUrl);
-            const data = await res.json();
-            let translated = data.text;
+        const cacheKey = getCacheKey(corrected, source, target);
+
+        // キャッシュチェック
+        if (translationCache.has(cacheKey)) {
+            let translated = translationCache.get(cacheKey);
+            // 辞書適用
             activeDictionary.forEach(pair => {
-                const regex = new RegExp(pair.src, 'gi');
+                const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
                 translated = translated.replace(regex, pair.target);
             });
             currentTranslatedText = translated;
             draw();
-        } catch (e) { console.error("API Error", e); }
+            return;
+        }
+
+        // キューイング処理
+        if (isTranslating) {
+            pendingTranslation = { corrected, source, target, cacheKey };
+            return;
+        }
+
+        await performTranslation(corrected, source, target, cacheKey);
+    }
+
+    // 実際の翻訳実行関数
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    async function performTranslation(corrected, source, target, cacheKey, retryCount = 0) {
+        isTranslating = true;
+        loadingIndicator.style.display = 'inline-block';
+        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+            
+            const res = await fetch(apiUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            
+            const data = await res.json();
+            let translated = data.text || data.translatedText || corrected;
+            
+            // キャッシュに保存
+            addToCache(cacheKey, translated);
+            
+            // 辞書適用
+            activeDictionary.forEach(pair => {
+                const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                translated = translated.replace(regex, pair.target);
+            });
+            
+            currentTranslatedText = translated;
+            draw();
+            loadingIndicator.style.display = 'none';
+            
+            // 保留中の翻訳があれば処理
+            if (pendingTranslation) {
+                const pending = pendingTranslation;
+                pendingTranslation = null;
+                await performTranslation(pending.corrected, pending.source, pending.target, pending.cacheKey);
+            } else {
+                isTranslating = false;
+            }
+        } catch (e) {
+            console.error("翻訳エラー:", e);
+            loadingIndicator.style.display = 'none';
+            isTranslating = false;
+            
+            // リトライ（最大2回）
+            if (retryCount < 2 && e.name !== 'AbortError') {
+                await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+                await performTranslation(corrected, source, target, cacheKey, retryCount + 1);
+            } else {
+                // エラー時は元のテキストを表示
+                currentTranslatedText = corrected;
+                draw();
+            }
+        }
     }
 
     function draw() {
@@ -246,15 +642,19 @@
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 let transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
+                    // 最終結果は即座に翻訳
                     translateText(transcript);
                     lastProcessedLength = 0;
                 } else {
                     interim = transcript;
-                    const threshold = isJaToEn ? 20 : 75;
+                    // 部分翻訳の閾値を言語に応じて調整（より効率的に）
+                    const threshold = isJaToEn ? 15 : 50; // 閾値を下げてより頻繁に翻訳
                     if (interim.length - lastProcessedLength > threshold) {
-                        const chunk = interim.substring(lastProcessedLength);
-                        translateText(chunk);
-                        lastProcessedLength = interim.length;
+                        const chunk = interim.substring(lastProcessedLength).trim();
+                        if (chunk.length > 3) { // 短すぎるテキストはスキップ
+                            translateText(chunk);
+                            lastProcessedLength = interim.length;
+                        }
                     }
                 }
             }
