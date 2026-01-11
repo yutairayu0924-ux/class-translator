@@ -2,21 +2,26 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - AI Powered V13</title>
+    <title>Lecture Subtitle - Ultimate V12 (Visual Config)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
+        /* グリッドを4列に変更して設定項目を収める */
         .setup-container { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
         .setup-box { background: #444; padding: 10px; border-radius: 5px; font-size: 0.8rem; text-align: left; }
         .control-panel { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #444; }
         .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; transition: 0.2s; }
         .btn-green { background: #27ae60; color: white; }
+        .btn-green:hover { background: #2ecc71; }
         .btn-blue { background: #2980b9; color: white; }
         .btn-orange { background: #e67e22; color: white; width: 100%; margin-top: 5px; font-size: 0.8rem; }
         .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.1rem; }
         textarea { width: 95%; height: 50px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; resize: none; }
+        
+        /* 設定用のinputスタイル */
         .config-input { width: 90%; margin-bottom: 5px; background: #222; color: white; border: 1px solid #666; padding: 4px; }
         .color-picker { height: 30px; width: 100%; cursor: pointer; }
+
         #canvasContainer { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
         #subtitleCanvas { border: 1px solid #666; background: #000; max-width: 100%; height: auto; }
         #status-bar { font-size: 1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
@@ -38,8 +43,8 @@
     </div>
     <div class="setup-box">
         <label>3. キャンバス設定</label>
-        幅: <input type="number" id="cfgWidth" class="config-input" value="1900">
-        高さ: <input type="number" id="cfgHeight" class="config-input" value="150">
+        幅(px): <input type="number" id="cfgWidth" class="config-input" value="1900">
+        高さ(px): <input type="number" id="cfgHeight" class="config-input" value="150">
         文字サイズ: <input type="number" id="cfgFontSize" class="config-input" value="50">
     </div>
     <div class="setup-box">
@@ -63,10 +68,11 @@
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
 <script>
-    // ========================================================
-    // 【重要】ここにGoogle AI Studioで取得したAPIキーを入れる
-    const GEMINI_API_KEY = "AIzaSyAQTCsmpRCG0WDcQ6WAdGicYlNz9RrdRMw"; 
-    // ========================================================
+    // ==========================================
+    // ↓↓ ここを書き換えてください ↓↓
+    const MY_EMAIL = "yutairayu0924@gmail.com"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwPIYiOJu8Jn-Zke3wylZ2W4_fKMIkeDWGWiJV7LSLf70t9Q5-lacYj2pifcDDgXrYqyA/exec"; 
+    // ==========================================
 
     const startBtn = document.getElementById('startBtn');
     const pipBtn = document.getElementById('pipBtn');
@@ -79,8 +85,8 @@
     const canvas = document.getElementById('subtitleCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('videoElement');
-    
-    // 設定UI
+
+    // 設定用エレメント
     const cfgWidth = document.getElementById('cfgWidth');
     const cfgHeight = document.getElementById('cfgHeight');
     const cfgFontSize = document.getElementById('cfgFontSize');
@@ -89,13 +95,13 @@
 
     let recognition;
     let isJaToEn = true; 
-    let currentTranslatedText = "AI Translation Ready";
+    let currentTranslatedText = "Subtitle Preview"; // プレビュー用に初期テキストを入れる
     let currentInterimText = "";
     let glossary = [];
     let activeDictionary = [];
     let lastProcessedLength = 0;
 
-    // 設定反映
+    // 設定変更の監視（変更されたら即再描画）
     function updateConfig() {
         canvas.width = parseInt(cfgWidth.value) || 1900;
         canvas.height = parseInt(cfgHeight.value) || 150;
@@ -104,7 +110,7 @@
     cfgWidth.onchange = updateConfig;
     cfgHeight.onchange = updateConfig;
     cfgFontSize.onchange = draw;
-    cfgTextColor.oninput = draw;
+    cfgTextColor.oninput = draw; // 色はドラッグ中も反映
     cfgBgColor.oninput = draw;
 
     updateModeDisplay();
@@ -129,7 +135,7 @@
     };
 
     function updateModeDisplay() {
-        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語 (AI)" : "🇺🇸 英語 → 🇯🇵 日本語 (AI)";
+        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
     }
 
     pdfUpload.onchange = async (e) => {
@@ -151,63 +157,41 @@
         reader.readAsArrayBuffer(file);
     };
 
-    // ★Gemini APIを呼び出す関数
     async function translateText(text) {
         if (!text.trim()) return;
-
-        // 手動キーワードの取得
+        let corrected = text;
         const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
-        
-        // 言語設定
-        const targetLang = isJaToEn ? "English" : "Japanese";
-        const sourceLang = isJaToEn ? "Japanese" : "English";
+        activeGlossary.forEach(term => {
+            if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
+                const regex = new RegExp(term, 'gi');
+                corrected = corrected.replace(regex, term);
+            }
+        });
 
-        // プロンプト（AIへの命令書）の作成
-        const prompt = `
-        You are a professional simultaneous interpreter.
-        Translate the following ${sourceLang} text to ${targetLang}.
-        
-        Rules:
-        1. Context: This is a university lecture or presentation.
-        2. Correction: If the input seems like a speech recognition error, guess the correct meaning from context and translate it.
-        3. Keywords: Prioritize these terms if relevant: [${activeGlossary.join(', ')}].
-        4. Output: Return ONLY the translated text. No explanations.
-        
-        Input: "${text}"
-        `;
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const source = isJaToEn ? 'ja' : 'en';
+        const target = isJaToEn ? 'en' : 'ja';
+        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
         
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }]
-                })
-            });
-            
-            const data = await response.json();
-            let translated = data.candidates[0].content.parts[0].text.trim();
-
-            // マイ辞書の適用（最終強制上書き）
+            const res = await fetch(apiUrl);
+            const data = await res.json();
+            let translated = data.text;
             activeDictionary.forEach(pair => {
                 const regex = new RegExp(pair.src, 'gi');
                 translated = translated.replace(regex, pair.target);
             });
-
             currentTranslatedText = translated;
             draw();
-        } catch (e) {
-            console.error("Gemini API Error:", e);
-        }
+        } catch (e) { console.error("API Error", e); }
     }
 
     function draw() {
+        // 背景色設定
         ctx.fillStyle = cfgBgColor.value;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
+        // 認識中テキスト（色は文字色より少し薄くする処理を入れるか、固定グレー）
         if (currentInterimText) {
             ctx.fillStyle = '#888888'; 
             ctx.font = '14px sans-serif';
@@ -216,15 +200,17 @@
         }
 
         const maxWidth = canvas.width - 50;
+        // 基本フォントサイズを設定値から取得
         let baseSize = parseInt(cfgFontSize.value) || 50;
         let fontSize = baseSize; 
         let lineHeight = baseSize * 1.2;
 
+        // 長文時の自動縮小ロジック
         if (currentTranslatedText.length > 100) { fontSize = baseSize * 0.6; lineHeight = fontSize * 1.2; }
         else if (currentTranslatedText.length > 60) { fontSize = baseSize * 0.8; lineHeight = fontSize * 1.2; }
 
         ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = cfgTextColor.value;
+        ctx.fillStyle = cfgTextColor.value; // 文字色設定
         ctx.textAlign = 'center';
 
         let words = currentTranslatedText.split('');
@@ -264,8 +250,7 @@
                     lastProcessedLength = 0;
                 } else {
                     interim = transcript;
-                    // AIは少し長めの文脈があったほうが賢いので、閾値を少し長めに設定
-                    const threshold = isJaToEn ? 40 : 120;
+                    const threshold = isJaToEn ? 35 : 100;
                     if (interim.length - lastProcessedLength > threshold) {
                         const chunk = interim.substring(lastProcessedLength);
                         translateText(chunk);
@@ -282,7 +267,8 @@
     startBtn.onclick = () => {
         recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
         recognition.start();
-        if(currentTranslatedText === "AI Translation Ready") currentTranslatedText = ""; 
+        // プレビュー文字を消す
+        if(currentTranslatedText === "Subtitle Preview") currentTranslatedText = ""; 
         startBtn.style.display = 'none';
         pipBtn.style.display = 'inline-block';
         video.srcObject = canvas.captureStream(10);
@@ -291,6 +277,7 @@
     };
     pipBtn.onclick = () => video.requestPictureInPicture();
     
+    // 初期描画（プレビュー）
     draw();
 </script>
 </body>
