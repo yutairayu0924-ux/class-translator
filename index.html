@@ -2,19 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Event Edition</title>
+    <title>Lecture Subtitle - Slim Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
         .setup-panel { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .control-panel { background: #444; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
-        .btn { padding: 12px 24px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
+        .btn { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
         .btn-green { background: #27ae60; color: white; }
         .btn-blue { background: #2980b9; color: white; }
-        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.5rem; }
-        textarea { width: 90%; height: 60px; background: #222; color: #fff; border: 1px solid #555; padding: 5px; font-size: 0.8rem; }
-        #subtitleCanvas { border: 2px solid #555; background: #000; width: 100%; max-width: 1000px; height: auto; }
-        #status-bar { font-size: 1.2rem; font-weight: bold; color: #f1c40f; margin: 10px 0; }
+        .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.2rem; }
+        textarea { width: 90%; height: 50px; background: #222; color: #fff; border: 1px solid #555; padding: 5px; font-size: 0.8rem; }
+        #canvasContainer { display: flex; justify-content: center; margin-top: 10px; }
+        /* キャンバス自体の表示サイズを調整 */
+        #subtitleCanvas { border: 1px solid #555; background: #000; width: 100%; max-width: 1100px; height: auto; }
+        #status-bar { font-size: 1.1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -25,8 +27,8 @@
         <input type="file" id="pdfUpload" accept="application/pdf">
     </div>
     <div>
-        <strong>2. 手動キーワード登録 (画像スライド対策)</strong><br>
-        <textarea id="manualKeywords" placeholder="専門用語をカンマ区切りで入力（例: AI, 機械学習, Quantum...）"></textarea>
+        <strong>2. 手動キーワード登録</strong><br>
+        <textarea id="manualKeywords" placeholder="専門用語を入力（カンマ区切り）"></textarea>
     </div>
 </div>
 
@@ -38,7 +40,9 @@
     <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を最前面に出す</button>
 </div>
 
-<canvas id="subtitleCanvas" width="1000" height="200"></canvas>
+<div id="canvasContainer">
+    <canvas id="subtitleCanvas" width="1200" height="120"></canvas>
+</div>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
 <script>
@@ -53,7 +57,7 @@
     const video = document.getElementById('videoElement');
 
     let recognition;
-    let isJaToEn = true; // デフォルトは日→英
+    let isJaToEn = true; 
     let currentTranslatedText = "";
     let currentInterimText = "";
     let glossary = [];
@@ -63,17 +67,15 @@
     }
     updateModeDisplay();
 
-    // 言語切り替えボタン
     toggleLang.onclick = () => {
         isJaToEn = !isJaToEn;
         updateModeDisplay();
         if (recognition) {
-            recognition.stop(); // 言語設定を反映させるために一度止める（onendで自動再起動）
+            recognition.stop();
             recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
         }
     };
 
-    // PDF読み込み
     pdfUpload.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -94,10 +96,8 @@
     };
 
     function correctText(text) {
-        // 手動入力されたキーワードも追加
         const manual = manualKeywords.value.split(/[,、\s]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
-        
         let corrected = text;
         activeGlossary.forEach(term => {
             if (term.length > 2 && text.toLowerCase().includes(term.toLowerCase())) {
@@ -109,21 +109,26 @@
     }
 
     function draw() {
+        // 背景の描画
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#999';
-        ctx.font = '20px sans-serif';
+        
+        // 上段：認識中のテキスト（小さく、少しグレー）
+        ctx.fillStyle = '#bbb';
+        ctx.font = '22px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(currentInterimText, canvas.width / 2, 35);
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 34px sans-serif';
         
-        // テキスト折り返し処理
-        const maxWidth = 920;
-        const lineHeight = 45;
+        // 下段：翻訳後のテキスト（大きく白く）
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 36px sans-serif';
+        
+        const maxWidth = 1100;
+        const lineHeight = 42;
         let words = currentTranslatedText.split('');
         let line = '';
-        let y = 90;
+        let y = 85; // 縦幅が短いため開始位置を調整
+
         for(let n = 0; n < words.length; n++) {
             let testLine = line + words[n];
             if (ctx.measureText(testLine).width > maxWidth && n > 0) {
@@ -171,6 +176,8 @@
     };
 
     pipBtn.onclick = () => video.requestPictureInPicture();
+    
+    // 初期描画
     draw();
 </script>
 </body>
