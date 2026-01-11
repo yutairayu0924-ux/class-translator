@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Lecture Subtitle - Professional V6</title>
+    <title>Lecture Subtitle - Professional V10 (Smart Chunk)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 10px; }
@@ -17,8 +17,7 @@
         .btn-switch { background: #f39c12; color: white; width: 100%; max-width: 400px; font-size: 1.1rem; }
         textarea { width: 95%; height: 60px; background: #111; color: #0f0; border: 1px solid #555; padding: 5px; font-size: 0.75rem; font-family: monospace; resize: none; }
         #canvasContainer { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
-        /* 1900pxの超ワイドキャンバス */
-        #subtitleCanvas { border: 1px solid #666; background: #000; width: 100%; max-width: 1800px; height: auto; }
+        #subtitleCanvas { border: 1px solid #666; background: #000; width: 100%; max-width: 1850px; height: auto; }
         #status-bar { font-size: 1rem; font-weight: bold; color: #f1c40f; margin: 5px 0; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #ddd; }
     </style>
@@ -32,11 +31,11 @@
     </div>
     <div class="setup-box">
         <label>2. キーワード登録 (聞き取り補正)</label>
-        <textarea id="manualKeywords" placeholder="AI, Gemini, 太郎... (カンマ区切り)"></textarea>
+        <textarea id="manualKeywords" placeholder="AI, Gemini..."></textarea>
     </div>
     <div class="setup-box">
         <label>3. マイ辞書 (翻訳の固定)</label>
-        <textarea id="myDictionary" placeholder="人工知能:Super AI&#10;学生:Learner"></textarea>
+        <textarea id="myDictionary" placeholder="人工知能:Super AI"></textarea>
         <button id="saveDictBtn" class="btn btn-orange">辞書登録を確定する</button>
     </div>
 </div>
@@ -50,12 +49,11 @@
 </div>
 
 <div id="canvasContainer">
-    <canvas id="subtitleCanvas" width="1900" height="100"></canvas>
+    <canvas id="subtitleCanvas" width="1900" height="150"></canvas>
 </div>
 <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
 
 <script>
-    // 制限緩和用メールアドレス
     const MY_EMAIL = "yutairayu0924@gmail.com"; 
 
     const startBtn = document.getElementById('startBtn');
@@ -75,24 +73,19 @@
     let currentTranslatedText = "";
     let currentInterimText = "";
     let glossary = [];
-    let activeDictionary = []; // 確定された辞書データを保持
+    let activeDictionary = [];
+    let lastProcessedLength = 0;
 
-    function updateModeDisplay() {
-        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
-    }
     updateModeDisplay();
 
-    // 辞書登録の確定処理
     saveDictBtn.onclick = () => {
         const lines = myDictionary.value.split('\n');
         activeDictionary = [];
         lines.forEach(line => {
             const [src, target] = line.split(/[:：]/);
-            if (src && target) {
-                activeDictionary.push({ src: src.trim(), target: target.trim() });
-            }
+            if (src && target) activeDictionary.push({ src: src.trim(), target: target.trim() });
         });
-        alert(`マイ辞書を更新しました！ (${activeDictionary.length}件のペアを登録)`);
+        alert(`辞書更新完了 (${activeDictionary.length}件)`);
     };
 
     toggleLang.onclick = () => {
@@ -103,6 +96,10 @@
             recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
         }
     };
+
+    function updateModeDisplay() {
+        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
+    }
 
     pdfUpload.onchange = async (e) => {
         const file = e.target.files[0];
@@ -118,61 +115,83 @@
                 fullText += content.items.map(item => item.str).join(' ');
             }
             glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
-            alert("PDFから学習しました！");
+            alert("PDF学習完了！");
         };
         reader.readAsArrayBuffer(file);
     };
 
-    function correctSourceText(text) {
+    async function translateText(text) {
+        if (!text.trim()) return;
+        let corrected = text;
         const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
         const activeGlossary = [...new Set([...glossary, ...manual])];
-        let corrected = text;
         activeGlossary.forEach(term => {
-            if (term.length > 1 && text.toLowerCase().includes(term.toLowerCase())) {
+            if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
                 const regex = new RegExp(term, 'gi');
                 corrected = corrected.replace(regex, term);
             }
         });
-        return corrected;
-    }
 
-    function applyMyDictionary(text) {
-        let result = text;
-        activeDictionary.forEach(pair => {
-            const regex = new RegExp(pair.src, 'gi');
-            result = result.replace(regex, pair.target);
-        });
-        return result;
+        const source = isJaToEn ? 'ja' : 'en';
+        const target = isJaToEn ? 'en' : 'ja';
+        const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(corrected)}&langpair=${source}|${target}&de=${encodeURIComponent(MY_EMAIL)}`;
+        
+        try {
+            const res = await fetch(apiUrl);
+            const data = await res.json();
+            let translated = data.responseData.translatedText;
+            activeDictionary.forEach(pair => {
+                const regex = new RegExp(pair.src, 'gi');
+                translated = translated.replace(regex, pair.target);
+            });
+            currentTranslatedText = translated;
+            draw();
+        } catch (e) { console.error("API Error"); }
     }
 
     function draw() {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 上段：認識中 (18px)
-        ctx.fillStyle = '#888';
-        ctx.font = '18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(currentInterimText, canvas.width / 2, 30);
-        
-        // 下段：翻訳後 (30px)
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 30px sans-serif';
-        const maxWidth = 1800;
-        const lineHeight = 35;
-        let words = currentTranslatedText.split('');
-        let line = '';
-        let y = 75; 
-
-        for(let n = 0; n < words.length; n++) {
-            let testLine = line + words[n];
-            if (ctx.measureText(testLine).width > maxWidth && n > 0) {
-                ctx.fillText(line, canvas.width / 2, y);
-                line = words[n];
-                y += lineHeight;
-            } else { line = testLine; }
+        if (currentInterimText) {
+            ctx.fillStyle = '#666';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(currentInterimText, 10, 15);
         }
-        ctx.fillText(line, canvas.width / 2, y);
+
+        const maxWidth = 1850;
+        let fontSize = 50; 
+        let lineHeight = 58;
+
+        if (currentTranslatedText.length > 100) { fontSize = 30; lineHeight = 36; }
+        else if (currentTranslatedText.length > 60) { fontSize = 40; lineHeight = 46; }
+
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+
+        let words = currentTranslatedText.split('');
+        let lines = [];
+        let currentLine = words[0] || "";
+
+        for (let i = 1; i < words.length; i++) {
+            let width = ctx.measureText(currentLine + words[i]).width;
+            if (width < maxWidth) {
+                currentLine += words[i];
+            } else {
+                lines.push(currentLine);
+                currentLine = words[i];
+            }
+        }
+        lines.push(currentLine);
+
+        let totalHeight = lines.length * lineHeight;
+        let startY = (canvas.height - totalHeight) / 2 + (lineHeight / 2) - 5; 
+
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], canvas.width / 2, startY + (i * lineHeight));
+        }
     }
 
     if ('webkitSpeechRecognition' in window) {
@@ -185,21 +204,20 @@
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 let transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    transcript = correctSourceText(transcript);
-                    const source = isJaToEn ? 'ja' : 'en';
-                    const target = isJaToEn ? 'en' : 'ja';
-                    const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${source}|${target}&de=${encodeURIComponent(MY_EMAIL)}`;
-                    
-                    try {
-                        const res = await fetch(apiUrl);
-                        const data = await res.json();
-                        let translated = data.responseData.translatedText;
-                        currentTranslatedText = applyMyDictionary(translated);
-                    } catch (e) {
-                        console.error("Translation Error", e);
-                    }
+                    translateText(transcript);
+                    lastProcessedLength = 0;
                 } else {
-                    interim += transcript;
+                    interim = transcript;
+                    
+                    // 【修正ポイント】言語によって閾値を変える
+                    // 日本語なら35文字、英語なら100文字
+                    const threshold = isJaToEn ? 35 : 100;
+
+                    if (interim.length - lastProcessedLength > threshold) {
+                        const chunk = interim.substring(lastProcessedLength);
+                        translateText(chunk);
+                        lastProcessedLength = interim.length;
+                    }
                 }
             }
             currentInterimText = interim;
@@ -216,7 +234,6 @@
         video.srcObject = canvas.captureStream(10);
         video.play();
     };
-
     pipBtn.onclick = () => video.requestPictureInPicture();
     draw();
 </script>
