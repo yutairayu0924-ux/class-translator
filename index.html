@@ -477,11 +477,157 @@
                 margin: 5px 0;
             }
         }
+
+
+
+        /* カスタムタイトルバー */
+        #title-bar {
+            -webkit-app-region: drag;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+
+        .window-controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            color: #ddd;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn.close-btn:hover {
+            background: #e74c3c;
+        }
+
+        body.presentation-mode #title-bar {
+            display: none;
+        }
+
+        /* ヘルプモーダル */
+        .help-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .help-modal {
+            background: rgba(30, 30, 40, 0.95);
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            color: #eee;
+            overflow-y: auto;
+            text-align: left;
+        }
+
+        .help-modal h2 {
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .help-modal h3 {
+            color: #4facfe;
+            margin-top: 20px;
+        }
+
+        .help-modal ul {
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+
+        .help-close-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .help-close-btn:hover {
+            color: #fff;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <!-- ヘルプモーダル -->
+    <div class="help-overlay" id="helpOverlay">
+        <div class="help-modal">
+            <button class="help-close-btn" id="closeHelpBtn">×</button>
+            <h2>📚 Lecture Translator 使い方ガイド</h2>
+
+            <h3>1. はじめに</h3>
+            <ul>
+                <li><strong>システム設定</strong>: 最初にGASのURL（翻訳バックエンド）を設定してください。</li>
+                <li><strong>認識開始</strong>: 緑色の「🎤 認識開始」ボタンでスタートします。</li>
+            </ul>
+
+            <h3>2. モードの活用</h3>
+            <ul>
+                <li><strong>🖥 プレゼンモード</strong> (推奨): UIを全て隠し、字幕だけを表示します。PowerPointの上に重ねるのに最適です。</li>
+                <li><strong>透明化</strong>: 色設定で「透明」ボタンを押し、「枠線」をオフにすると、文字だけが浮き上がります。</li>
+                <li><strong>クリックスルー (アプリ版のみ)</strong>: プレゼンモード中は、字幕エリアをマウスが通過します（奥の画面を操作可能）。操作したい場合は右上の「戻る」ボタンを使ってください。
+                </li>
+            </ul>
+
+            <h3>3. 翻訳のコツ</h3>
+            <ul>
+                <li><strong>用語学習</strong>: 授業のPDFがあれば、ドラッグ＆ドロップで読み込ませると専門用語の認識精度が上がります。</li>
+                <li><strong>翻訳タイミング</strong>: 英語→日本語が変なときは、設定の「翻訳タイミング」を「✨ 精度優先」にしてみてください。</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="title-bar">
+        <div style="flex:1; padding-left:10px; font-size:12px; color:#aaa; display:flex; align-items:center;">
+            <span>Lecture Translator</span>
+        </div>
+        <div class="window-controls">
+            <button class="control-btn" id="minBtn">－</button>
+            <button class="control-btn" id="maxBtn">□</button>
+            <button class="control-btn close-btn" id="closeBtn">×</button>
+        </div>
+    </div>
+
+    <div class="container" style="margin-top: 30px;">
         <div class="header">
             <div class="header-content">
                 <div>
@@ -489,6 +635,8 @@
                     <p style="margin:0; color:#aaa; font-size:0.9rem;">授業やプレゼンテーションをリアルタイムで翻訳・字幕表示</p>
                 </div>
                 <div style="display:flex; gap:10px;">
+                    <button id="openHelpBtn" class="settings-btn" style="background:rgba(255, 255, 255, 0.1);">❓
+                        使い方</button>
                     <button id="presModeBtn" class="settings-btn"
                         style="background:rgba(79, 172, 254, 0.2); border-color:#4facfe;">🖥 プレゼンモード</button>
                     <button id="toggleSettingsBtn" class="settings-btn">⚙️ 設定を隠す</button>
@@ -496,7 +644,7 @@
             </div>
         </div>
 
-        <button id="exitPresBtn">↩ 通常モードに戻る</button>
+        <button id="exitPresBtn" style="top:50px;">↩ 通常モードに戻る</button>
 
         <div class="setup-container" id="setupContainer">
             <div class="setup-box">
@@ -542,6 +690,18 @@
                 <label style="font-size:0.85rem; margin-top:8px;">背景透明度: <span id="bgOpacityValue">70</span>%</label>
                 <input type="range" id="cfgBgOpacity" class="config-input" min="0" max="100" value="70"
                     style="width:100%; padding:0;">
+            </div>
+            <div class="setup-box">
+                <label>5. 翻訳調整</label>
+                <label style="font-size:0.85rem; margin-top:5px;">翻訳タイミング（精度 vs 速さ）</label>
+                <select id="cfgSensitivity" class="config-input">
+                    <option value="fast">🚀 速さ優先 (リアルタイム)</option>
+                    <option value="balanced" selected>⚖️ バランス (推奨)</option>
+                    <option value="precise">✨ 精度優先 (文単位)</option>
+                </select>
+                <p style="font-size:0.8rem; color:#aaa; margin:5px 0;">
+                    ※精度優先にすると、文が確定するまで翻訳されません（英語→日本語におすすめ）
+                </p>
             </div>
         </div>
 
@@ -597,6 +757,29 @@
         const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
         const presModeBtn = document.getElementById('presModeBtn');
         const exitPresBtn = document.getElementById('exitPresBtn');
+        const cfgSensitivity = document.getElementById('cfgSensitivity');
+
+        // ヘルプ制御
+        const helpOverlay = document.getElementById('helpOverlay');
+        const openHelpBtn = document.getElementById('openHelpBtn');
+        const closeHelpBtn = document.getElementById('closeHelpBtn');
+
+        openHelpBtn.onclick = () => helpOverlay.style.display = 'flex';
+        closeHelpBtn.onclick = () => helpOverlay.style.display = 'none';
+        helpOverlay.onclick = (e) => {
+            if (e.target === helpOverlay) helpOverlay.style.display = 'none';
+        };
+
+        // ウィンドウ操作ボタン (Electron用)
+        if (window.electronAPI) {
+            document.getElementById('minBtn').onclick = () => window.electronAPI.minimize();
+            document.getElementById('maxBtn').onclick = () => window.electronAPI.maximize();
+            document.getElementById('closeBtn').onclick = () => window.electronAPI.close();
+        } else {
+            // ブラウザ版では非表示にする
+            document.getElementById('title-bar').style.display = 'none';
+            document.querySelector('.container').style.marginTop = '0';
+        }
 
         // UI制御
         let isSettingsVisible = true;
@@ -611,12 +794,37 @@
             document.body.classList.add('presentation-mode');
             exitPresBtn.style.display = 'block';
             showNotification("マウスホバーで「戻るボタン」が表示されます");
+
+            // Electronの場合、クリックスルーを有効化
+            if (window.electronAPI) {
+                window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+            }
         };
 
         exitPresBtn.onclick = () => {
             document.body.classList.remove('presentation-mode');
             exitPresBtn.style.display = 'none';
+
+            // Electronの場合、クリックスルーを解除（通常操作に戻す）
+            if (window.electronAPI) {
+                window.electronAPI.setIgnoreMouseEvents(false);
+            }
         };
+
+        // Electron用: ボタン類にホバーしたときはマウスイベントをキャッチする
+        const interactiveElements = [exitPresBtn];
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                if (document.body.classList.contains('presentation-mode') && window.electronAPI) {
+                    window.electronAPI.setIgnoreMouseEvents(false);
+                }
+            });
+            el.addEventListener('mouseleave', () => {
+                if (document.body.classList.contains('presentation-mode') && window.electronAPI) {
+                    window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+                }
+            });
+        });
 
         let recognition;
         let isJaToEn = true;
@@ -668,6 +876,17 @@
             }
             saveSettings();
         };
+
+        cfgShowFrame.onchange = () => {
+            if (cfgShowFrame.checked) {
+                canvas.classList.remove('no-frame');
+            } else {
+                canvas.classList.add('no-frame');
+            }
+            saveSettings();
+        };
+
+        cfgSensitivity.onchange = saveSettings;
 
         cfgGasUrl.onchange = saveSettings;
         cfgEmail.onchange = saveSettings;
@@ -997,13 +1216,50 @@
                         lastProcessedLength = 0;
                     } else {
                         interim = transcript;
-                        // 部分翻訳の閾値を言語に応じて調整（より効率的に）
-                        const threshold = isJaToEn ? 15 : 50; // 閾値を下げてより頻繁に翻訳
-                        if (interim.length - lastProcessedLength > threshold) {
-                            const chunk = interim.substring(lastProcessedLength).trim();
-                            if (chunk.length > 3) { // 短すぎるテキストはスキップ
-                                translateText(chunk);
-                                lastProcessedLength = interim.length;
+
+                        // 設定された感度に基づく制御
+                        const mode = cfgSensitivity.value;
+
+                        if (mode === 'precise') {
+                            // 精度優先なら中間結果での翻訳はしない（描画のみ）
+                        } else {
+                            let threshold = isJaToEn ? 15 : 50;
+
+                            // バランスモードなら少しバッファを増やす
+                            if (mode === 'balanced') {
+                                threshold = isJaToEn ? 20 : 80;
+                            }
+
+                            if (interim.length - lastProcessedLength > threshold) {
+                                let chunk = interim.substring(lastProcessedLength);
+
+                                // 英語の場合は単語の区切り（スペース）を確認してカットする
+                                if (!isJaToEn) {
+                                    const lastSpaceIndex = chunk.lastIndexOf(' ');
+                                    if (lastSpaceIndex > 0) {
+                                        chunk = chunk.substring(0, lastSpaceIndex);
+                                        // 処理済み長さを進める（スペース分も含む）
+                                        // chunkは部分文字列なので、正確な位置を計算
+                                        const actualChunkLength = chunk.length;
+
+                                        if (chunk.trim().length > 3) {
+                                            translateText(chunk.trim());
+                                            lastProcessedLength += actualChunkLength;
+                                        }
+                                    } else {
+                                        // スペースが見つからない場合（非常に長い単語など）、fastモードなら切るが、balancedなら待つ
+                                        if (mode === 'fast' && chunk.length > threshold + 20) {
+                                            translateText(chunk.trim());
+                                            lastProcessedLength += chunk.length;
+                                        }
+                                    }
+                                } else {
+                                    // 日本語は文字数で切ってOK
+                                    if (chunk.trim().length > 3) {
+                                        translateText(chunk.trim());
+                                        lastProcessedLength = interim.length;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1074,7 +1330,9 @@
                 textColor: cfgTextColor.value,
                 bgColor: cfgBgColor.value,
                 bgOpacity: cfgBgOpacity.value,
+                bgOpacity: cfgBgOpacity.value,
                 showFrame: cfgShowFrame.checked,
+                sensitivity: cfgSensitivity.value,
                 keywords: manualKeywords.value,
                 dictionary: myDictionary.value
             };
@@ -1105,6 +1363,7 @@
                             canvas.classList.add('no-frame');
                         }
                     }
+                    if (settings.sensitivity) cfgSensitivity.value = settings.sensitivity;
                     if (settings.keywords) manualKeywords.value = settings.keywords;
                     if (settings.dictionary) {
                         myDictionary.value = settings.dictionary;
