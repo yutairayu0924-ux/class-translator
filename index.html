@@ -312,6 +312,12 @@
             height: auto;
             border-radius: 10px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        #subtitleCanvas.no-frame {
+            border: none;
+            box-shadow: none;
         }
 
         #status-bar {
@@ -455,13 +461,20 @@
                 <input type="number" id="cfgHeight" class="config-input" value="150" min="100" max="1080">
                 <label style="font-size:0.85rem; margin-top:5px;">文字サイズ</label>
                 <input type="number" id="cfgFontSize" class="config-input" value="50" min="20" max="200">
+                <label style="display: items-center; margin-top: 8px; font-size: 0.9rem; cursor: pointer;">
+                    <input type="checkbox" id="cfgShowFrame" checked style="margin-right: 5px;"> 枠線・影を表示
+                </label>
             </div>
             <div class="setup-box">
                 <label>4. 色設定</label>
                 <label style="font-size:0.85rem; margin-top:5px;">文字色</label>
                 <input type="color" id="cfgTextColor" class="color-picker" value="#ffffff">
                 <label style="font-size:0.85rem; margin-top:8px;">背景色</label>
-                <input type="color" id="cfgBgColor" class="color-picker" value="#000000">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <input type="color" id="cfgBgColor" class="color-picker" value="#000000" style="flex:1;">
+                    <button id="btnTransparent"
+                        style="padding:5px 10px; font-size:0.8rem; border-radius:5px; border:1px solid #555; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer;">透明</button>
+                </div>
                 <label style="font-size:0.85rem; margin-top:8px;">背景透明度: <span id="bgOpacityValue">70</span>%</label>
                 <input type="range" id="cfgBgOpacity" class="config-input" min="0" max="100" value="70"
                     style="width:100%; padding:0;">
@@ -513,6 +526,8 @@
         const bgOpacityValue = document.getElementById('bgOpacityValue');
         const cfgGasUrl = document.getElementById('cfgGasUrl');
         const cfgEmail = document.getElementById('cfgEmail');
+        const cfgShowFrame = document.getElementById('cfgShowFrame');
+        const btnTransparent = document.getElementById('btnTransparent');
         const setupContainer = document.getElementById('setupContainer');
         const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
 
@@ -556,6 +571,25 @@
             draw();
             saveSettings();
         };
+
+        // 透明ボタン
+        btnTransparent.onclick = () => {
+            cfgBgOpacity.value = 0;
+            bgOpacityValue.textContent = "0";
+            draw();
+            saveSettings();
+        };
+
+        // 枠線表示切り替え
+        cfgShowFrame.onchange = () => {
+            if (cfgShowFrame.checked) {
+                canvas.classList.remove('no-frame');
+            } else {
+                canvas.classList.add('no-frame');
+            }
+            saveSettings();
+        };
+
         cfgGasUrl.onchange = saveSettings;
         cfgEmail.onchange = saveSettings;
         manualKeywords.onchange = saveSettings;
@@ -961,6 +995,7 @@
                 textColor: cfgTextColor.value,
                 bgColor: cfgBgColor.value,
                 bgOpacity: cfgBgOpacity.value,
+                showFrame: cfgShowFrame.checked,
                 keywords: manualKeywords.value,
                 dictionary: myDictionary.value
             };
@@ -982,6 +1017,14 @@
                     if (settings.bgOpacity) {
                         cfgBgOpacity.value = settings.bgOpacity;
                         bgOpacityValue.textContent = settings.bgOpacity;
+                    }
+                    if (settings.showFrame !== undefined) {
+                        cfgShowFrame.checked = settings.showFrame;
+                        if (settings.showFrame) {
+                            canvas.classList.remove('no-frame');
+                        } else {
+                            canvas.classList.add('no-frame');
+                        }
                     }
                     if (settings.keywords) manualKeywords.value = settings.keywords;
                     if (settings.dictionary) {
