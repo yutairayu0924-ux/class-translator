@@ -1,24 +1,31 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lecture Subtitle - リアルタイム翻訳</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { 
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-            text-align: center; 
+            text-align: center;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #eee; 
-            margin: 0; 
+            color: #eee;
+            margin: 0;
             padding: 15px;
             min-height: 100vh;
         }
-        
-        .container { max-width: 1400px; margin: 0 auto; }
-        
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
         .header {
             background: rgba(255, 255, 255, 0.05);
             padding: 20px;
@@ -26,8 +33,29 @@
             margin-bottom: 20px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
         }
-        
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ddd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         .header h1 {
             margin: 0 0 10px 0;
             font-size: 1.8rem;
@@ -36,58 +64,58 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
-        .setup-container { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-            gap: 15px; 
-            background: rgba(255, 255, 255, 0.03); 
-            padding: 20px; 
-            border-radius: 15px; 
+
+        .setup-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 20px;
+            border-radius: 15px;
             margin-bottom: 20px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
-        .setup-box { 
-            background: rgba(255, 255, 255, 0.05); 
-            padding: 15px; 
-            border-radius: 10px; 
-            font-size: 0.9rem; 
+
+        .setup-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
             text-align: left;
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         .setup-box:hover {
             background: rgba(255, 255, 255, 0.08);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
-        
-        .control-panel { 
-            background: rgba(255, 255, 255, 0.05); 
-            padding: 20px; 
-            border-radius: 15px; 
-            margin-bottom: 20px; 
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
         }
-        
-        .btn { 
-            padding: 12px 24px; 
-            font-size: 1rem; 
-            cursor: pointer; 
-            border: none; 
-            border-radius: 8px; 
-            font-weight: 600; 
-            margin: 8px; 
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 8px;
             transition: all 0.3s ease;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             position: relative;
             overflow: hidden;
         }
-        
+
         .btn::before {
             content: '';
             position: absolute;
@@ -100,97 +128,123 @@
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
         }
-        
+
         .btn:hover::before {
             width: 300px;
             height: 300px;
         }
-        
+
         .btn:active {
             transform: scale(0.98);
         }
-        
-        .btn-green { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; }
-        .btn-green:hover { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); }
-        
-        .btn-blue { background: linear-gradient(135deg, #2980b9 0%, #3498db 100%); color: white; }
-        .btn-blue:hover { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4); }
-        
-        .btn-orange { 
-            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); 
-            color: white; 
-            width: 100%; 
-            margin-top: 10px; 
+
+        .btn-green {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+
+        .btn-green:hover {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-red {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            color: white;
+        }
+
+        .btn-red:hover {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            color: white;
+        }
+
+        .btn-blue:hover {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-orange {
+            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
             font-size: 0.9rem;
         }
-        .btn-orange:hover { 
+
+        .btn-orange:hover {
             background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
             box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
         }
-        
-        .btn-switch { 
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); 
-            color: white; 
-            width: 100%; 
-            max-width: 400px; 
+
+        .btn-switch {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            width: 100%;
+            max-width: 400px;
             font-size: 1.1rem;
             padding: 14px 28px;
         }
+
         .btn-switch:hover {
             background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
             box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
         }
-        
-        textarea { 
-            width: 100%; 
-            height: 60px; 
-            background: rgba(0, 0, 0, 0.3); 
-            color: #0f0; 
-            border: 1px solid rgba(85, 85, 85, 0.5); 
-            padding: 8px; 
-            font-size: 0.85rem; 
-            font-family: 'Courier New', monospace; 
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #0f0;
+            border: 1px solid rgba(85, 85, 85, 0.5);
+            padding: 8px;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
             resize: vertical;
             border-radius: 5px;
             transition: border-color 0.3s;
         }
-        
+
         textarea:focus {
             outline: none;
             border-color: #4facfe;
             box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
         }
-        
-        .config-input { 
-            width: 100%; 
-            margin-bottom: 8px; 
-            background: rgba(0, 0, 0, 0.3); 
-            color: white; 
-            border: 1px solid rgba(102, 102, 102, 0.5); 
-            padding: 8px; 
+
+        .config-input {
+            width: 100%;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: 1px solid rgba(102, 102, 102, 0.5);
+            padding: 8px;
             border-radius: 5px;
             transition: border-color 0.3s;
         }
-        
+
         .config-input:focus {
             outline: none;
             border-color: #4facfe;
             box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
         }
-        
-        .color-picker { 
-            height: 40px; 
-            width: 100%; 
-            cursor: pointer; 
+
+        .color-picker {
+            height: 40px;
+            width: 100%;
+            cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 5px;
             transition: transform 0.2s;
         }
-        
+
         .color-picker:hover {
             transform: scale(1.05);
         }
-        
+
         /* レンジスライダーのスタイル */
         input[type="range"] {
             -webkit-appearance: none;
@@ -201,7 +255,7 @@
             outline: none;
             cursor: pointer;
         }
-        
+
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -213,13 +267,13 @@
             transition: all 0.2s;
             box-shadow: 0 2px 6px rgba(79, 172, 254, 0.4);
         }
-        
+
         input[type="range"]::-webkit-slider-thumb:hover {
             background: #00f2fe;
             transform: scale(1.2);
             box-shadow: 0 3px 10px rgba(79, 172, 254, 0.6);
         }
-        
+
         input[type="range"]::-moz-range-thumb {
             width: 18px;
             height: 18px;
@@ -230,47 +284,47 @@
             transition: all 0.2s;
             box-shadow: 0 2px 6px rgba(79, 172, 254, 0.4);
         }
-        
+
         input[type="range"]::-moz-range-thumb:hover {
             background: #00f2fe;
             transform: scale(1.2);
             box-shadow: 0 3px 10px rgba(79, 172, 254, 0.6);
         }
-        
+
         input[type="range"]::-moz-range-track {
             height: 6px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 3px;
         }
 
-        #canvasContainer { 
-            display: flex; 
-            justify-content: center; 
-            margin-top: 20px; 
+        #canvasContainer {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
             overflow-x: auto;
             padding: 10px;
         }
-        
-        #subtitleCanvas { 
-            border: 2px solid rgba(102, 102, 102, 0.5); 
-            background: transparent; 
-            max-width: 100%; 
+
+        #subtitleCanvas {
+            border: 2px solid rgba(102, 102, 102, 0.5);
+            background: transparent;
+            max-width: 100%;
             height: auto;
             border-radius: 10px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
-        
-        #status-bar { 
-            font-size: 1.1rem; 
-            font-weight: 600; 
-            color: #4facfe; 
+
+        #status-bar {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #4facfe;
             margin: 10px 0;
             padding: 12px;
             background: rgba(79, 172, 254, 0.1);
             border-radius: 8px;
             border: 1px solid rgba(79, 172, 254, 0.3);
         }
-        
+
         #status-bar .status-indicator {
             display: inline-block;
             width: 12px;
@@ -280,20 +334,27 @@
             margin-right: 8px;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
-        label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-weight: 600; 
-            color: #ddd; 
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ddd;
             font-size: 0.95rem;
         }
-        
+
         .loading-indicator {
             display: inline-block;
             margin-left: 10px;
@@ -305,11 +366,13 @@
             animation: spin 0.8s linear infinite;
             vertical-align: middle;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .notification {
             position: fixed;
             top: 20px;
@@ -323,25 +386,28 @@
             animation: slideIn 0.3s ease;
             backdrop-filter: blur(10px);
         }
-        
+
         @keyframes slideIn {
             from {
                 transform: translateX(400px);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-        
+
         @media (max-width: 768px) {
             .setup-container {
                 grid-template-columns: 1fr;
             }
+
             .header h1 {
                 font-size: 1.4rem;
             }
+
             .btn {
                 width: 100%;
                 margin: 5px 0;
@@ -349,410 +415,603 @@
         }
     </style>
 </head>
+
 <body>
-<div class="container">
-<div class="header">
-    <h1>🎓 リアルタイム講義翻訳システム</h1>
-    <p style="margin:0; color:#aaa; font-size:0.9rem;">授業やプレゼンテーションをリアルタイムで翻訳・字幕表示</p>
-</div>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>🎓 リアルタイム講義翻訳システム</h1>
+                    <p style="margin:0; color:#aaa; font-size:0.9rem;">授業やプレゼンテーションをリアルタイムで翻訳・字幕表示</p>
+                </div>
+                <button id="toggleSettingsBtn" class="settings-btn">⚙️ 設定を隠す</button>
+            </div>
+        </div>
 
-<div class="setup-container">
-    <div class="setup-box">
-        <label>1. 用語学習 (PDF)</label>
-        <input type="file" id="pdfUpload" accept="application/pdf" style="width:100%">
+        <div class="setup-container" id="setupContainer">
+            <div class="setup-box">
+                <label>0. システム設定 (必須)</label>
+                <label style="font-size:0.8rem; color:#aaa;">GAS URL</label>
+                <input type="password" id="cfgGasUrl" class="config-input" placeholder="https://script.google.com/..."
+                    onfocus="this.type='text'" onblur="this.type='password'">
+                <label style="font-size:0.8rem; color:#aaa;">Email (ログ用)</label>
+                <input type="text" id="cfgEmail" class="config-input" placeholder="example@gmail.com">
+            </div>
+            <div class="setup-box">
+                <label>1. 用語学習 (PDF)</label>
+                <input type="file" id="pdfUpload" accept="application/pdf" style="width:100%">
+            </div>
+            <div class="setup-box">
+                <label>2. キーワード・マイ辞書</label>
+                <input type="text" id="manualKeywords" class="config-input" placeholder="補正: AI, Gemini...">
+                <textarea id="myDictionary" placeholder="辞書: 人工知能:AI"></textarea>
+                <button id="saveDictBtn" class="btn btn-orange">辞書確定</button>
+            </div>
+            <div class="setup-box">
+                <label>3. キャンバス設定</label>
+                <label style="font-size:0.85rem; margin-top:5px;">幅(px)</label>
+                <input type="number" id="cfgWidth" class="config-input" value="1900" min="800" max="3840">
+                <label style="font-size:0.85rem; margin-top:5px;">高さ(px)</label>
+                <input type="number" id="cfgHeight" class="config-input" value="150" min="100" max="1080">
+                <label style="font-size:0.85rem; margin-top:5px;">文字サイズ</label>
+                <input type="number" id="cfgFontSize" class="config-input" value="50" min="20" max="200">
+            </div>
+            <div class="setup-box">
+                <label>4. 色設定</label>
+                <label style="font-size:0.85rem; margin-top:5px;">文字色</label>
+                <input type="color" id="cfgTextColor" class="color-picker" value="#ffffff">
+                <label style="font-size:0.85rem; margin-top:8px;">背景色</label>
+                <input type="color" id="cfgBgColor" class="color-picker" value="#000000">
+                <label style="font-size:0.85rem; margin-top:8px;">背景透明度: <span id="bgOpacityValue">70</span>%</label>
+                <input type="range" id="cfgBgOpacity" class="config-input" min="0" max="100" value="70"
+                    style="width:100%; padding:0;">
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div id="status-bar">
+                <span class="status-indicator"></span>
+                モード: <span id="modeDisplay">準備中</span>
+                <span id="loadingIndicator" class="loading-indicator" style="display:none;"></span>
+            </div>
+            <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
+            <br>
+            <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
+            <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を浮かせる (PiP)</button>
+        </div>
+
+        <div id="canvasContainer">
+            <canvas id="subtitleCanvas" width="1900" height="150"></canvas>
+        </div>
+        <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
     </div>
-    <div class="setup-box">
-        <label>2. キーワード・マイ辞書</label>
-        <input type="text" id="manualKeywords" class="config-input" placeholder="補正: AI, Gemini...">
-        <textarea id="myDictionary" placeholder="辞書: 人工知能:AI"></textarea>
-        <button id="saveDictBtn" class="btn btn-orange">辞書確定</button>
-    </div>
-    <div class="setup-box">
-        <label>3. キャンバス設定</label>
-        <label style="font-size:0.85rem; margin-top:5px;">幅(px)</label>
-        <input type="number" id="cfgWidth" class="config-input" value="1900" min="800" max="3840">
-        <label style="font-size:0.85rem; margin-top:5px;">高さ(px)</label>
-        <input type="number" id="cfgHeight" class="config-input" value="150" min="100" max="1080">
-        <label style="font-size:0.85rem; margin-top:5px;">文字サイズ</label>
-        <input type="number" id="cfgFontSize" class="config-input" value="50" min="20" max="200">
-    </div>
-    <div class="setup-box">
-        <label>4. 色設定</label>
-        <label style="font-size:0.85rem; margin-top:5px;">文字色</label>
-        <input type="color" id="cfgTextColor" class="color-picker" value="#ffffff">
-        <label style="font-size:0.85rem; margin-top:8px;">背景色</label>
-        <input type="color" id="cfgBgColor" class="color-picker" value="#000000">
-        <label style="font-size:0.85rem; margin-top:8px;">背景透明度: <span id="bgOpacityValue">70</span>%</label>
-        <input type="range" id="cfgBgOpacity" class="config-input" min="0" max="100" value="70" style="width:100%; padding:0;">
-    </div>
-</div>
 
-<div class="control-panel">
-    <div id="status-bar">
-        <span class="status-indicator"></span>
-        モード: <span id="modeDisplay">準備中</span>
-        <span id="loadingIndicator" class="loading-indicator" style="display:none;"></span>
-    </div>
-    <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
-    <br>
-    <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
-    <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を浮かせる (PiP)</button>
-</div>
+    <script>
+        // ==========================================
+        // 設定はローカルストレージに保存されます
+        // ==========================================
 
-<div id="canvasContainer">
-    <canvas id="subtitleCanvas" width="1900" height="150"></canvas>
-</div>
-<video id="videoElement" autoplay playsinline muted style="display:none;"></video>
-</div>
+        const startBtn = document.getElementById('startBtn');
+        const pipBtn = document.getElementById('pipBtn');
+        const toggleLang = document.getElementById('toggleLang');
+        const modeDisplay = document.getElementById('modeDisplay');
+        const manualKeywords = document.getElementById('manualKeywords');
+        const myDictionary = document.getElementById('myDictionary');
+        const saveDictBtn = document.getElementById('saveDictBtn');
+        const pdfUpload = document.getElementById('pdfUpload');
+        const canvas = document.getElementById('subtitleCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('videoElement');
 
-<script>
-    // ==========================================
-    // ↓↓ ここを書き換えてください ↓↓
-    const MY_EMAIL = "yutairayu0924@gmail.com"; 
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwPIYiOJu8Jn-Zke3wylZ2W4_fKMIkeDWGWiJV7LSLf70t9Q5-lacYj2pifcDDgXrYqyA/exec"; 
-    // ==========================================
+        // 設定用エレメント
+        const cfgWidth = document.getElementById('cfgWidth');
+        const cfgHeight = document.getElementById('cfgHeight');
+        const cfgFontSize = document.getElementById('cfgFontSize');
+        const cfgTextColor = document.getElementById('cfgTextColor');
+        const cfgBgColor = document.getElementById('cfgBgColor');
+        const cfgBgOpacity = document.getElementById('cfgBgOpacity');
+        const bgOpacityValue = document.getElementById('bgOpacityValue');
+        const cfgGasUrl = document.getElementById('cfgGasUrl');
+        const cfgEmail = document.getElementById('cfgEmail');
+        const setupContainer = document.getElementById('setupContainer');
+        const toggleSettingsBtn = document.getElementById('toggleSettingsBtn');
 
-    const startBtn = document.getElementById('startBtn');
-    const pipBtn = document.getElementById('pipBtn');
-    const toggleLang = document.getElementById('toggleLang');
-    const modeDisplay = document.getElementById('modeDisplay');
-    const manualKeywords = document.getElementById('manualKeywords');
-    const myDictionary = document.getElementById('myDictionary');
-    const saveDictBtn = document.getElementById('saveDictBtn');
-    const pdfUpload = document.getElementById('pdfUpload');
-    const canvas = document.getElementById('subtitleCanvas');
-    const ctx = canvas.getContext('2d');
-    const video = document.getElementById('videoElement');
+        // UI制御
+        let isSettingsVisible = true;
+        toggleSettingsBtn.onclick = () => {
+            isSettingsVisible = !isSettingsVisible;
+            setupContainer.style.display = isSettingsVisible ? 'grid' : 'none';
+            toggleSettingsBtn.textContent = isSettingsVisible ? '⚙️ 設定を隠す' : '⚙️ 設定を表示';
+        };
 
-    // 設定用エレメント
-    const cfgWidth = document.getElementById('cfgWidth');
-    const cfgHeight = document.getElementById('cfgHeight');
-    const cfgFontSize = document.getElementById('cfgFontSize');
-    const cfgTextColor = document.getElementById('cfgTextColor');
-    const cfgBgColor = document.getElementById('cfgBgColor');
-    const cfgBgOpacity = document.getElementById('cfgBgOpacity');
-    const bgOpacityValue = document.getElementById('bgOpacityValue');
+        let recognition;
+        let isJaToEn = true;
+        let currentTranslatedText = "Subtitle Preview"; // プレビュー用に初期テキストを入れる
+        let currentInterimText = "";
+        let glossary = [];
+        let activeDictionary = [];
+        let lastProcessedLength = 0;
 
-    let recognition;
-    let isJaToEn = true; 
-    let currentTranslatedText = "Subtitle Preview"; // プレビュー用に初期テキストを入れる
-    let currentInterimText = "";
-    let glossary = [];
-    let activeDictionary = [];
-    let lastProcessedLength = 0;
-    
-    // 翻訳改善用の変数
-    let translationCache = new Map(); // 翻訳キャッシュ
-    let translationQueue = []; // 翻訳キュー
-    let isTranslating = false; // 翻訳中のフラグ
-    let pendingTranslation = null; // 保留中の翻訳
-    const CACHE_SIZE = 500; // キャッシュサイズの上限
+        // 翻訳改善用の変数
+        let translationCache = new Map(); // 翻訳キャッシュ
+        let translationQueue = []; // 翻訳キュー
+        let isTranslating = false; // 翻訳中のフラグ
+        let pendingTranslation = null; // 保留中の翻訳
+        const CACHE_SIZE = 500; // キャッシュサイズの上限
 
-    // 設定変更の監視（変更されたら即再描画）
-    function updateConfig() {
-        canvas.width = parseInt(cfgWidth.value) || 1900;
-        canvas.height = parseInt(cfgHeight.value) || 150;
-        draw();
-    }
-    cfgWidth.onchange = updateConfig;
-    cfgHeight.onchange = updateConfig;
-    cfgFontSize.onchange = draw;
-    cfgTextColor.oninput = draw; // 色はドラッグ中も反映
-    cfgBgColor.oninput = draw;
-    cfgBgOpacity.oninput = () => {
-        bgOpacityValue.textContent = cfgBgOpacity.value;
-        draw();
-    };
-    
-    // 16進数カラーコードをRGBA形式に変換する関数
-    function hexToRgba(hex, alpha) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    updateModeDisplay();
-
-    saveDictBtn.onclick = () => {
-        const lines = myDictionary.value.split('\n');
-        activeDictionary = [];
-        lines.forEach(line => {
-            const [src, target] = line.split(/[:：]/);
-            if (src && target) activeDictionary.push({ src: src.trim(), target: target.trim() });
-        });
-        showNotification(`辞書更新完了 (${activeDictionary.length}件)`);
-        translationCache.clear(); // 辞書更新時はキャッシュをクリア
-    };
-
-    toggleLang.onclick = () => {
-        isJaToEn = !isJaToEn;
-        updateModeDisplay();
-        if (recognition) {
-            recognition.stop();
-            recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
+        // 設定変更の監視（変更されたら即再描画＆保存）
+        function updateConfig() {
+            canvas.width = parseInt(cfgWidth.value) || 1900;
+            canvas.height = parseInt(cfgHeight.value) || 150;
+            draw();
+            saveSettings();
         }
-    };
+        cfgWidth.onchange = updateConfig;
+        cfgHeight.onchange = updateConfig;
+        cfgFontSize.onchange = () => { draw(); saveSettings(); };
+        cfgTextColor.oninput = () => { draw(); saveSettings(); };
+        cfgBgColor.oninput = () => { draw(); saveSettings(); };
+        cfgBgOpacity.oninput = () => {
+            bgOpacityValue.textContent = cfgBgOpacity.value;
+            draw();
+            saveSettings();
+        };
+        cfgGasUrl.onchange = saveSettings;
+        cfgEmail.onchange = saveSettings;
+        manualKeywords.onchange = saveSettings;
 
-    function updateModeDisplay() {
-        modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
-    }
+        // 16進数カラーコードをRGBA形式に変換する関数
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
 
-    pdfUpload.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async function() {
-            try {
-                const typedarray = new Uint8Array(this.result);
-                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    fullText += content.items.map(item => item.str).join(' ');
-                }
-                glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
-                showNotification(`PDF学習完了！ (${glossary.length}語彙)`);
-            } catch (error) {
-                console.error("PDF読み込みエラー:", error);
-                showNotification("PDF読み込みに失敗しました", "error");
+        updateModeDisplay();
+
+        saveDictBtn.onclick = () => {
+            const lines = myDictionary.value.split('\n');
+            activeDictionary = [];
+            lines.forEach(line => {
+                const [src, target] = line.split(/[:：]/);
+                if (src && target) activeDictionary.push({ src: src.trim(), target: target.trim() });
+            });
+            showNotification(`辞書更新完了 (${activeDictionary.length}件)`);
+            translationCache.clear(); // 辞書更新時はキャッシュをクリア
+            saveSettings();
+        };
+
+        toggleLang.onclick = () => {
+            isJaToEn = !isJaToEn;
+            updateModeDisplay();
+            if (recognition) {
+                recognition.stop();
+                recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
             }
         };
-        reader.readAsArrayBuffer(file);
-    };
 
-    // 通知表示関数
-    function showNotification(message, type = "success") {
-        const notification = document.createElement('div');
-        notification.className = 'notification';
-        notification.style.background = type === "error" 
-            ? 'rgba(231, 76, 60, 0.95)' 
-            : 'rgba(46, 204, 113, 0.95)';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-            notification.style.animation = 'slideIn 0.3s ease reverse';
-            setTimeout(() => notification.remove(), 300);
-        }, 2000);
-    }
-
-    // キャッシュ管理関数
-    function getCacheKey(text, source, target) {
-        return `${source}_${target}_${text}`;
-    }
-
-    function addToCache(key, value) {
-        if (translationCache.size >= CACHE_SIZE) {
-            // 最も古いエントリを削除（LRU的な動作）
-            const firstKey = translationCache.keys().next().value;
-            translationCache.delete(firstKey);
+        function updateModeDisplay() {
+            modeDisplay.innerText = isJaToEn ? "🇯🇵 日本語 → 🇺🇸 英語" : "🇺🇸 英語 → 🇯🇵 日本語";
         }
-        translationCache.set(key, value);
-    }
 
-    // 改善された翻訳関数（キャッシュ、キューイング、リトライ機能付き）
-    async function translateText(text) {
-        if (!text.trim()) return;
-        
-        // テキストの前処理
-        let corrected = text.trim();
-        const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
-        const activeGlossary = [...new Set([...glossary, ...manual])];
-        activeGlossary.forEach(term => {
-            if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
-                const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                corrected = corrected.replace(regex, term);
+        pdfUpload.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function () {
+                try {
+                    const typedarray = new Uint8Array(this.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let fullText = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        fullText += content.items.map(item => item.str).join(' ');
+                    }
+                    glossary = [...new Set([...glossary, ...(fullText.match(/[A-Z]{2,}|[a-zA-Z]{4,}|[\u4e00-\u9faf]{2,}/g) || [])])];
+                    showNotification(`PDF学習完了！ (${glossary.length}語彙)`);
+                } catch (error) {
+                    console.error("PDF読み込みエラー:", error);
+                    showNotification("PDF読み込みに失敗しました", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // 通知表示関数
+        function showNotification(message, type = "success") {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.background = type === "error"
+                ? 'rgba(231, 76, 60, 0.95)'
+                : 'rgba(46, 204, 113, 0.95)';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        }
+
+        // キャッシュ管理関数
+        function getCacheKey(text, source, target) {
+            return `${source}_${target}_${text}`;
+        }
+
+        function addToCache(key, value) {
+            if (translationCache.size >= CACHE_SIZE) {
+                // 最も古いエントリを削除（LRU的な動作）
+                const firstKey = translationCache.keys().next().value;
+                translationCache.delete(firstKey);
             }
-        });
+            translationCache.set(key, value);
+        }
 
-        const source = isJaToEn ? 'ja' : 'en';
-        const target = isJaToEn ? 'en' : 'ja';
-        const cacheKey = getCacheKey(corrected, source, target);
+        // 改善された翻訳関数（キャッシュ、キューイング、リトライ機能付き）
+        async function translateText(text) {
+            if (!text.trim()) return;
 
-        // キャッシュチェック
-        if (translationCache.has(cacheKey)) {
-            let translated = translationCache.get(cacheKey);
-            // 辞書適用
-            activeDictionary.forEach(pair => {
-                const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                translated = translated.replace(regex, pair.target);
+            // テキストの前処理
+            let corrected = text.trim();
+            const manual = manualKeywords.value.split(/[,、\s\n]+/).filter(w => w.length > 0);
+            const activeGlossary = [...new Set([...glossary, ...manual])];
+            activeGlossary.forEach(term => {
+                if (term.length > 1 && corrected.toLowerCase().includes(term.toLowerCase())) {
+                    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    corrected = corrected.replace(regex, term);
+                }
             });
-            currentTranslatedText = translated;
-            draw();
-            return;
-        }
 
-        // キューイング処理
-        if (isTranslating) {
-            pendingTranslation = { corrected, source, target, cacheKey };
-            return;
-        }
+            const source = isJaToEn ? 'ja' : 'en';
+            const target = isJaToEn ? 'en' : 'ja';
+            const cacheKey = getCacheKey(corrected, source, target);
 
-        await performTranslation(corrected, source, target, cacheKey);
-    }
-
-    // 実際の翻訳実行関数
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    
-    async function performTranslation(corrected, source, target, cacheKey, retryCount = 0) {
-        isTranslating = true;
-        loadingIndicator.style.display = 'inline-block';
-        const apiUrl = `${GAS_URL}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}`;
-        
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
-            
-            const res = await fetch(apiUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            
-            const data = await res.json();
-            let translated = data.text || data.translatedText || corrected;
-            
-            // キャッシュに保存
-            addToCache(cacheKey, translated);
-            
-            // 辞書適用
-            activeDictionary.forEach(pair => {
-                const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                translated = translated.replace(regex, pair.target);
-            });
-            
-            currentTranslatedText = translated;
-            draw();
-            loadingIndicator.style.display = 'none';
-            
-            // 保留中の翻訳があれば処理
-            if (pendingTranslation) {
-                const pending = pendingTranslation;
-                pendingTranslation = null;
-                await performTranslation(pending.corrected, pending.source, pending.target, pending.cacheKey);
-            } else {
-                isTranslating = false;
-            }
-        } catch (e) {
-            console.error("翻訳エラー:", e);
-            loadingIndicator.style.display = 'none';
-            isTranslating = false;
-            
-            // リトライ（最大2回）
-            if (retryCount < 2 && e.name !== 'AbortError') {
-                await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
-                await performTranslation(corrected, source, target, cacheKey, retryCount + 1);
-            } else {
-                // エラー時は元のテキストを表示
-                currentTranslatedText = corrected;
+            // キャッシュチェック
+            if (translationCache.has(cacheKey)) {
+                let translated = translationCache.get(cacheKey);
+                // 辞書適用
+                activeDictionary.forEach(pair => {
+                    const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    translated = translated.replace(regex, pair.target);
+                });
+                currentTranslatedText = translated;
                 draw();
+                return;
             }
-        }
-    }
 
-    function draw() {
-        // 背景をクリア（透明にする）
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 背景色設定（半透明）
-        const opacity = parseFloat(cfgBgOpacity.value) / 100;
-        ctx.fillStyle = hexToRgba(cfgBgColor.value, opacity);
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 認識中テキスト（色は文字色より少し薄くする処理を入れるか、固定グレー）
-        if (currentInterimText) {
-            ctx.fillStyle = '#888888'; 
-            ctx.font = '14px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(currentInterimText, 10, 15);
-        }
-
-        const maxWidth = canvas.width - 50;
-        // 基本フォントサイズを設定値から取得
-        let baseSize = parseInt(cfgFontSize.value) || 50;
-        let fontSize = baseSize; 
-        let lineHeight = baseSize * 1.2;
-
-        // 長文時の自動縮小ロジック
-        if (currentTranslatedText.length > 100) { fontSize = baseSize * 0.6; lineHeight = fontSize * 1.2; }
-        else if (currentTranslatedText.length > 60) { fontSize = baseSize * 0.8; lineHeight = fontSize * 1.2; }
-
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = cfgTextColor.value; // 文字色設定
-        ctx.textAlign = 'center';
-
-        let words = currentTranslatedText.split('');
-        let lines = [];
-        let currentLine = words[0] || "";
-
-        for (let i = 1; i < words.length; i++) {
-            let width = ctx.measureText(currentLine + words[i]).width;
-            if (width < maxWidth) {
-                currentLine += words[i];
-            } else {
-                lines.push(currentLine);
-                currentLine = words[i];
+            // キューイング処理
+            if (isTranslating) {
+                pendingTranslation = { corrected, source, target, cacheKey };
+                return;
             }
+
+            await performTranslation(corrected, source, target, cacheKey);
         }
-        lines.push(currentLine);
 
-        let totalHeight = lines.length * lineHeight;
-        let startY = (canvas.height - totalHeight) / 2 + (lineHeight / 2) - 5; 
+        // 実際の翻訳実行関数
+        const loadingIndicator = document.getElementById('loadingIndicator');
 
-        for (let i = 0; i < lines.length; i++) {
-            ctx.fillText(lines[i], canvas.width / 2, startY + (i * lineHeight));
-        }
-    }
+        async function performTranslation(corrected, source, target, cacheKey, retryCount = 0) {
+            isTranslating = true;
+            loadingIndicator.style.display = 'inline-block';
 
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
+            const gasUrl = cfgGasUrl.value.trim();
+            if (!gasUrl) {
+                showNotification("GAS URLが設定されていません", "error");
+                isTranslating = false;
+                loadingIndicator.style.display = 'none';
+                return;
+            }
 
-        recognition.onresult = async (event) => {
-            let interim = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                let transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    // 最終結果は即座に翻訳
-                    translateText(transcript);
-                    lastProcessedLength = 0;
+            const email = cfgEmail.value.trim() || 'anonymous';
+            const apiUrl = `${gasUrl}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}&email=${encodeURIComponent(email)}`;
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+
+                const res = await fetch(apiUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                let translated = data.text || data.translatedText || corrected;
+
+                // キャッシュに保存
+                addToCache(cacheKey, translated);
+
+                // 辞書適用
+                activeDictionary.forEach(pair => {
+                    const regex = new RegExp(pair.src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    translated = translated.replace(regex, pair.target);
+                });
+
+                currentTranslatedText = translated;
+                draw();
+                loadingIndicator.style.display = 'none';
+
+                // 保留中の翻訳があれば処理
+                if (pendingTranslation) {
+                    const pending = pendingTranslation;
+                    pendingTranslation = null;
+                    await performTranslation(pending.corrected, pending.source, pending.target, pending.cacheKey);
                 } else {
-                    interim = transcript;
-                    // 部分翻訳の閾値を言語に応じて調整（より効率的に）
-                    const threshold = isJaToEn ? 15 : 50; // 閾値を下げてより頻繁に翻訳
-                    if (interim.length - lastProcessedLength > threshold) {
-                        const chunk = interim.substring(lastProcessedLength).trim();
-                        if (chunk.length > 3) { // 短すぎるテキストはスキップ
-                            translateText(chunk);
-                            lastProcessedLength = interim.length;
+                    isTranslating = false;
+                }
+            } catch (e) {
+                console.error("翻訳エラー:", e);
+                loadingIndicator.style.display = 'none';
+                isTranslating = false;
+
+                // リトライ（最大2回）
+                if (retryCount < 2 && e.name !== 'AbortError') {
+                    await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+                    await performTranslation(corrected, source, target, cacheKey, retryCount + 1);
+                } else {
+                    // エラー時は元のテキストを表示
+                    currentTranslatedText = corrected;
+                    draw();
+                }
+            }
+        }
+
+        function draw() {
+            // 背景をクリア（透明にする）
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 背景色設定（半透明）
+            const opacity = parseFloat(cfgBgOpacity.value) / 100;
+            ctx.fillStyle = hexToRgba(cfgBgColor.value, opacity);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 認識中テキスト（色は文字色より少し薄くする処理を入れるか、固定グレー）
+            if (currentInterimText) {
+                ctx.fillStyle = '#888888';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(currentInterimText, 10, 15);
+            }
+
+            // パディングを設定（左右80px、上下20px）
+            const paddingX = 80;
+            const paddingY = 20;
+            const maxWidth = canvas.width - (paddingX * 2);
+            const maxHeight = canvas.height - (paddingY * 2);
+
+            // 基本フォントサイズを設定値から取得
+            let baseSize = parseInt(cfgFontSize.value) || 50;
+            let fontSize = baseSize;
+            let lineHeight;
+            let lines = [];
+
+            // フォントサイズを動的に調整（テキストが収まるまで縮小）
+            let attempts = 0;
+            const maxAttempts = 20;
+
+            while (attempts < maxAttempts) {
+                lineHeight = fontSize * 1.2;
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textAlign = 'center';
+
+                // テキストを文字単位で分割（日本語・英語両対応）
+                let chars = currentTranslatedText.split('');
+                lines = [];
+                let currentLine = chars[0] || "";
+
+                // 改行処理（文字単位、ただし長い単語は強制改行）
+                for (let i = 1; i < chars.length; i++) {
+                    const testLine = currentLine + chars[i];
+                    const measuredWidth = ctx.measureText(testLine).width;
+
+                    if (measuredWidth < maxWidth) {
+                        currentLine = testLine;
+                    } else {
+                        // 現在の行が空でない場合のみ追加
+                        if (currentLine.trim()) {
+                            lines.push(currentLine);
+                        }
+                        currentLine = chars[i];
+
+                        // 単一文字がmaxWidthを超える場合は強制的に縮小（非常に長いURLなど）
+                        if (ctx.measureText(chars[i]).width > maxWidth) {
+                            fontSize = Math.max(fontSize * 0.8, 12);
+                            attempts++;
+                            break;
                         }
                     }
                 }
-            }
-            currentInterimText = interim;
-            draw();
-        };
-        recognition.onend = () => { recognition.start(); };
-    }
 
-    startBtn.onclick = () => {
-        recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
-        recognition.start();
-        // プレビュー文字を消す
-        if(currentTranslatedText === "Subtitle Preview") currentTranslatedText = ""; 
-        startBtn.style.display = 'none';
-        pipBtn.style.display = 'inline-block';
-        video.srcObject = canvas.captureStream(10);
-        video.play();
+                // 最後の行を追加
+                if (currentLine.trim()) {
+                    lines.push(currentLine);
+                }
+
+                // 高さチェック
+                const totalHeight = lines.length * lineHeight;
+
+                if (totalHeight <= maxHeight) {
+                    // 収まったので終了
+                    break;
+                } else {
+                    // 高さが足りないのでフォントサイズを縮小
+                    fontSize = fontSize * 0.85;
+                    attempts++;
+                }
+            }
+
+            // 最終的なフォント設定
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.fillStyle = cfgTextColor.value;
+            ctx.textAlign = 'center';
+
+            // 垂直方向の中央揃え
+            const totalHeight = lines.length * lineHeight;
+            let startY = (canvas.height - totalHeight) / 2 + (lineHeight / 2);
+
+            // テキスト描画（はみ出し防止のため、高さ範囲内のみ描画）
+            for (let i = 0; i < lines.length; i++) {
+                const yPos = startY + (i * lineHeight);
+                // キャンバス範囲内に収まる場合のみ描画
+                if (yPos >= paddingY && yPos <= canvas.height - paddingY) {
+                    // 各ラインがmaxWidthを超えないことを確認
+                    const lineWidth = ctx.measureText(lines[i]).width;
+                    if (lineWidth <= maxWidth) {
+                        ctx.fillText(lines[i], canvas.width / 2, yPos);
+                    } else {
+                        // 万が一はみ出す場合はテキストを省略
+                        ctx.fillText(lines[i].substring(0, Math.floor(lines[i].length * 0.9)) + '...', canvas.width / 2, yPos);
+                    }
+                }
+            }
+        }
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = async (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    let transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        // 最終結果は即座に翻訳
+                        translateText(transcript);
+                        lastProcessedLength = 0;
+                    } else {
+                        interim = transcript;
+                        // 部分翻訳の閾値を言語に応じて調整（より効率的に）
+                        const threshold = isJaToEn ? 15 : 50; // 閾値を下げてより頻繁に翻訳
+                        if (interim.length - lastProcessedLength > threshold) {
+                            const chunk = interim.substring(lastProcessedLength).trim();
+                            if (chunk.length > 3) { // 短すぎるテキストはスキップ
+                                translateText(chunk);
+                                lastProcessedLength = interim.length;
+                            }
+                        }
+                    }
+                }
+                currentInterimText = interim;
+                draw();
+            };
+            recognition.onend = () => {
+                // 意図的な停止でなければ再開
+                if (isRecognitionActive) {
+                    recognition.start();
+                } else {
+                    startBtn.textContent = '🎤 認識開始';
+                    startBtn.className = 'btn btn-green';
+                    modeDisplay.innerText = "停止中";
+                }
+            };
+        } else {
+            showNotification("このブラウザは音声認識に対応していません (Chrome推奨)", "error");
+            startBtn.disabled = true;
+            startBtn.textContent = "❌ 非対応ブラウザ";
+        }
+
+        let isRecognitionActive = false;
+
+        startBtn.onclick = () => {
+            if (!recognition) return;
+
+            if (isRecognitionActive) {
+                // 停止処理
+                isRecognitionActive = false;
+                recognition.stop();
+                startBtn.textContent = '🎤 認識開始';
+                startBtn.className = 'btn btn-green';
+            } else {
+                // 開始処理
+                isRecognitionActive = true;
+                recognition.lang = isJaToEn ? 'ja-JP' : 'en-US';
+                try {
+                    recognition.start();
+                    startBtn.textContent = '⏹ 認識停止';
+                    startBtn.className = 'btn btn-red';
+                    // プレビュー文字を消す
+                    if (currentTranslatedText === "Subtitle Preview") currentTranslatedText = "";
+                    startBtn.style.display = 'inline-block'; // PiP時もボタンは消さない（操作できるように）
+
+                    video.srcObject = canvas.captureStream(10);
+                    video.play().catch(e => console.log("Video play error (background):", e));
+                    draw();
+                } catch (e) {
+                    console.error(e);
+                    isRecognitionActive = false;
+                    showNotification("認識開始エラー", "error");
+                }
+            }
+        };
+
+        // ==========================================
+        // LocalStorage Logic
+        // ==========================================
+        function saveSettings() {
+            const settings = {
+                gasUrl: cfgGasUrl.value,
+                email: cfgEmail.value,
+                width: cfgWidth.value,
+                height: cfgHeight.value,
+                fontSize: cfgFontSize.value,
+                textColor: cfgTextColor.value,
+                bgColor: cfgBgColor.value,
+                bgOpacity: cfgBgOpacity.value,
+                keywords: manualKeywords.value,
+                dictionary: myDictionary.value
+            };
+            localStorage.setItem('classTranslatorSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('classTranslatorSettings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    if (settings.gasUrl) cfgGasUrl.value = settings.gasUrl;
+                    if (settings.email) cfgEmail.value = settings.email;
+                    if (settings.width) cfgWidth.value = settings.width;
+                    if (settings.height) cfgHeight.value = settings.height;
+                    if (settings.fontSize) cfgFontSize.value = settings.fontSize;
+                    if (settings.textColor) cfgTextColor.value = settings.textColor;
+                    if (settings.bgColor) cfgBgColor.value = settings.bgColor;
+                    if (settings.bgOpacity) {
+                        cfgBgOpacity.value = settings.bgOpacity;
+                        bgOpacityValue.textContent = settings.bgOpacity;
+                    }
+                    if (settings.keywords) manualKeywords.value = settings.keywords;
+                    if (settings.dictionary) {
+                        myDictionary.value = settings.dictionary;
+                        // 辞書も更新しておく
+                        saveDictBtn.click();
+                    }
+                    updateConfig();
+                } catch (e) {
+                    console.error("設定読み込みエラー", e);
+                }
+            }
+            // デフォルト値でもし初期ロード時にURLがなければ、以前のハードコード値を placeholder 的に入れておくのも親切だが
+            // 今回はセキュリティ意識で空か、ユーザー入力を促す形にする。
+            // ただし、以前の値を持ってる人がスムーズに移行できるように、もしLocalstorageが空なら
+            // デフォルト値として旧ハードコード値を入れてあげる（今回だけ特別措置として）
+            if (!saved && !cfgGasUrl.value) {
+                cfgGasUrl.value = "https://script.google.com/macros/s/AKfycbwPIYiOJu8Jn-Zke3wylZ2W4_fKMIkeDWGWiJV7LSLf70t9Q5-lacYj2pifcDDgXrYqyA/exec";
+                cfgEmail.value = "yutairayu0924@gmail.com";
+                saveSettings();
+            }
+        }
+
+        // 初期化実行
+        loadSettings();
+        pipBtn.onclick = () => video.requestPictureInPicture();
+
+        // 初期描画（プレビュー）
         draw();
-    };
-    pipBtn.onclick = () => video.requestPictureInPicture();
-    
-    // 初期描画（プレビュー）
-    draw();
-</script>
+    </script>
 </body>
+
 </html>
