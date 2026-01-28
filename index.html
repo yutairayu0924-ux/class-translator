@@ -553,8 +553,9 @@
             </div>
             <button id="toggleLang" class="btn btn-switch">🔄 言語を入れ替える</button>
             <br>
+            <br>
             <button id="startBtn" class="btn btn-green">🎤 認識開始</button>
-            <button id="pipBtn" class="btn btn-blue" style="display:none;">📺 字幕を浮かせる (PiP)</button>
+            <button id="pipBtn" class="btn btn-blue">📺 字幕をオーバーレイ表示 (PiP)</button>
         </div>
 
         <div id="canvasContainer">
@@ -1128,7 +1129,45 @@
 
         // 初期化実行
         loadSettings();
-        pipBtn.onclick = () => video.requestPictureInPicture();
+
+        // PiP制御改善
+        pipBtn.onclick = async () => {
+            if (!recognition) return;
+
+            // 認識が始まっていない場合は開始する
+            if (!isRecognitionActive) {
+                startBtn.click();
+                // 認識開始の非同期処理（権限リクエストなど）を待つために少し遅延させる
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            try {
+                // キャンバスをストリーム化（まだしていなければ）
+                if (video.srcObject == null || video.srcObject.active === false) {
+                    video.srcObject = canvas.captureStream(30); // 30fps
+                    await video.play();
+                }
+
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else {
+                    await video.requestPictureInPicture();
+                }
+            } catch (e) {
+                console.error(e);
+                showNotification("PiPの開始に失敗しました。再生ボタンを押してから試してください", "error");
+            }
+        };
+
+        // PiP状態の監視
+        video.onenterpictureinpicture = () => {
+            pipBtn.textContent = "📺 オーバーレイ終了";
+            showNotification("字幕を最前面に表示しました");
+        };
+
+        video.onleavepictureinpicture = () => {
+            pipBtn.textContent = "📺 字幕をオーバーレイ表示 (PiP)";
+        };
 
         // 初期描画（プレビュー）
         draw();
