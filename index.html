@@ -1040,17 +1040,30 @@
             const apiUrl = `${gasUrl}?text=${encodeURIComponent(corrected)}&source=${source}&target=${target}&email=${encodeURIComponent(email)}`;
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+                let data;
+                // Electron版 (IPC経由) か ブラウザ版 (Fetch) かで分岐
+                if (window.electronAPI && window.electronAPI.translate) {
+                    data = await window.electronAPI.translate({
+                        url: gasUrl, // URLも渡す
+                        text: corrected,
+                        source: source,
+                        target: target,
+                        email: email
+                    });
+                } else {
+                    // 通常のブラウザ版 (GitHub Pages等)
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
 
-                const res = await fetch(apiUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
+                    const res = await fetch(apiUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
 
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    data = await res.json();
                 }
 
-                const data = await res.json();
                 let translated = data.text || data.translatedText || corrected;
 
                 // キャッシュに保存
