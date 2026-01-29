@@ -1041,19 +1041,38 @@
 
             try {
                 let data;
-                // Electron版 (IPC経由) か ブラウザ版 (Fetch) かで分岐
+                // Electron版 (IPC経由)
                 if (window.electronAPI && window.electronAPI.translate) {
                     data = await window.electronAPI.translate({
-                        url: gasUrl, // URLも渡す
+                        url: gasUrl,
                         text: corrected,
                         source: source,
                         target: target,
                         email: email
                     });
-                } else {
-                    // 通常のブラウザ版 (GitHub Pages等)
+                }
+                // ローカルサーバー版 (/api/translate経由)
+                else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    const response = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url: gasUrl,
+                            text: corrected,
+                            source: source,
+                            target: target,
+                            email: email
+                        })
+                    });
+                    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                    data = await response.json();
+                }
+                // GitHub Pages版 (直接Fetch)
+                else {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
                     const res = await fetch(apiUrl, { signal: controller.signal });
                     clearTimeout(timeoutId);
@@ -1328,6 +1347,22 @@
                     showNotification("認識開始エラー", "error");
                 }
             }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech Recognition Error:", event.error);
+            showNotification(`音声認識エラー: ${event.error}`, "error");
+        };
+
+        recognition.onstart = () => {
+            console.log("Speech Recognition Started");
+        };
+
+        // 元のonresultにログ追加
+        const originalOnResult = recognition.onresult;
+        recognition.onresult = (event) => {
+            console.log("Speech Result Received");
+            if (originalOnResult) originalOnResult(event);
         };
 
         // ==========================================
